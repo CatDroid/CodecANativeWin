@@ -42,6 +42,10 @@ public class MainActivity extends Activity {
 			this.startActivity(start);
 			this.finish();
 			break;
+		case R.id.bDeEnCodec:
+			start = new Intent(MainActivity.this, De2FileAndEn2FileActivity.class);
+			this.startActivity(start);
+			this.finish();	
 		default:
 			Log.d(TAG, "unknown Btn");
 			break;

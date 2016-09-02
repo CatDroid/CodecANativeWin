@@ -35,6 +35,10 @@
             android:name=".CameraActivity"
             android:label="@string/title_activity_camera" >
         </activity>
+        <activity
+            android:name=".De2FileAndEn2FileActivity"
+            android:label="@string/title_activity_de2_file_and_en2_file" >
+        </activity>
     </application>
 
 </manifest>

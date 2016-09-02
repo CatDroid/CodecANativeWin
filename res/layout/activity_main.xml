@@ -26,4 +26,14 @@
         android:text="Camera预览保存" 
 		android:onClick="funcOnClick"/>
 
+    <Button
+        android:id="@+id/bDeEnCodec"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/bCamera"
+        android:layout_below="@+id/bCamera"
+        android:layout_marginTop="18dp"
+        android:text="从文件解码后编码到文件"
+        android:onClick="funcOnClick" />
+
 </RelativeLayout>

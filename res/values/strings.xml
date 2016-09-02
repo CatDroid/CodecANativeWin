@@ -6,5 +6,6 @@
     <string name="action_settings">Settings</string>
     <string name="title_activity_native_win_codec">NativeWinCodecActivity</string>
     <string name="title_activity_camera">CameraActivity</string>
+    <string name="title_activity_de2_file_and_en2_file">De2FileAndEn2File</string>
 
 </resources>
