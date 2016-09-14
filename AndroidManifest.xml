@@ -39,6 +39,14 @@
             android:name=".De2FileAndEn2FileActivity"
             android:label="@string/title_activity_de2_file_and_en2_file" >
         </activity>
+        <activity
+            android:name=".MediaPlayerActivity"
+            android:label="@string/title_activity_media_player" >
+        </activity>
+        <activity
+            android:name=".DisplayH264Activity"
+            android:label="@string/title_activity_display_h264" >
+        </activity>
     </application>
 
 </manifest>

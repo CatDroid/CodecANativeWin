@@ -14,6 +14,8 @@
 #define LOG_TAG "jni_nwc"
 #include "vortex.h"
 #define NWC_CLASS_PATH "com/tom/codecanativewin/jni/NativeWinCodec"
+#define SAVE_EXTRACT_H264_TO_FILE 1  //  mp4容器提取的视频 NAL 保存到文件中/mnt/sdcard/nativeCodec.h264
+#define SEARCH_OTHER_NAL_IN_SAMPLE 1 //  通过Extractor取出的一个sample中 可能包含多个NAL
 
 enum{
 	THREAD_STARTED = 0 ,
@@ -202,17 +204,17 @@ static void* playback_thread(void* argv)
 				unsigned char * pps = NULL;  size_t pps_length = 0;
 				AMediaFormat_getBuffer(format, "csd-0",(void**)&sps , &sps_length);
 				AMediaFormat_getBuffer(format, "csd-1",(void**)&pps , &pps_length);
-				unsigned char* pBuffer = (unsigned char*)malloc( sps_length*3 + pps_length*3 + sps_length/4 +  pps_length/4  + 3 +  10/*barrier*/);
+				unsigned char* pBuffer = (unsigned char*)malloc( sps_length*5 + pps_length*5 + sps_length/4 +  pps_length/4  + 3 +  10/*barrier*/);
 				unsigned char* p = pBuffer ;
 				size_t loop = 0 ; int increased = 0 ;
 				if(sps != NULL){
 					for( loop = 0 ; loop < sps_length ; loop++  ){
-						increased = snprintf( (char *)p , 4 ,"%02x ",  *(sps + loop) );
+						increased = snprintf( (char *)p , 6 ,"0x%02x,",  *(sps + loop) );
 						if( increased < 0){
 							ALOGE("dump sps error");
 							break;
 						}
-						p += 3 ;
+						p += 5 ;
 						if( (loop + 1 ) % 4 == 0 ) { snprintf( (char *)p , 2 ,"\n"); p += 1;}
 					}
 				}else{
@@ -223,12 +225,12 @@ static void* playback_thread(void* argv)
 
 				if(pps != NULL){
 					for( loop = 0 ; loop < pps_length ; loop++  ){
-						increased = snprintf( (char *)p ,4 ,"%02x ",  *(pps + loop) );
+						increased = snprintf( (char *)p ,6 ,"0x%02x,",  *(pps + loop) );
 						if( increased < 0){
 							ALOGE("dump pps error");
 							break;
 						}
-						p += 3 ;
+						p += 5 ;
 						if( (loop + 1 ) % 4 == 0 ) { snprintf( (char *)p , 2 ,"\n"); p += 1;}
 					}
 				}else{
@@ -282,8 +284,13 @@ static void* playback_thread(void* argv)
 	int64_t frameCount = 0 ;
 
 
-
-
+#if SAVE_EXTRACT_H264_TO_FILE
+	int fd = -1 ;
+	fd = open("/mnt/sdcard/nativeCodec.h264",O_CREAT | O_WRONLY | O_TRUNC );
+	if( fd < 0 ) {
+		ALOGD("native Codec H264 file open error %d , %s  " , fd , strerror(errno));
+	}
+#endif
 
 	// 循环
 	bool sawInputEOS = false, sawOutputEOS = false ;
@@ -298,7 +305,12 @@ static void* playback_thread(void* argv)
 	            size_t bufsize;// buffer的大小
 	            uint8_t *buf = AMediaCodec_getInputBuffer(codec, bufidx, &bufsize);
 	            ssize_t sampleSize = AMediaExtractor_readSampleData(extract, buf, bufsize);
-	            ALOGD("Codec Buffer = %d Extractor = %d " , bufsize ,sampleSize );
+	            // ALOGD("Codec Buffer = %d Extractor = %d " , bufsize ,sampleSize );
+	            uint8_t nal_type = buf[4] & 0x1F ;
+	            uint8_t nal_type_buf = buf[4] ;
+
+	            // 如果NAL数据中间出现了68 67类型的 NAL  readSample会跟着之前的I帧或者IDR帧/P帧/B帧一起获取  所以 即使文件中含有NAL_type=68 67 sps pps都不会在readsample中看到
+	            // ALOGD("Extractor %02x %02x %02x %02x %02x %d" , buf[0] , buf[1] , buf[2]  , buf[3]  , buf[4] , sampleSize  );
 	            /*
 	             * Codec Buffer = 1048576 Extractor = 4482
 	             * Codec Buffer = 1048576 Extractor = 1133
@@ -306,11 +318,43 @@ static void* playback_thread(void* argv)
 	             * Codec Buffer = 1048576 Extractor = 5768
 	             * Codec Buffer = 1048576 Extractor = 949    ??? 为什么Codec Buffer是1048576??
 	             * */
+
+#if SEARCH_OTHER_NAL_IN_SAMPLE
+	            	// SEI  readSampleData如果返回0x6很有可能包含
+
+
+	            	uint8_t* p = buf + 4 ; // 跳过开始的00 00 00 01 查找这个sample中的其他NAL
+	            	uint8_t* pEnd = buf + sampleSize  ;
+					bool sample_end = false;
+					do{
+						while( *p!=0 || *(p+1)!=0 || *(p+2) != 0 || *(p+3)!=1 ){
+							p++;
+							if( p + 3 >= pEnd ) {
+								sample_end = true ;
+								break;
+							}
+						}
+						if(!sample_end){
+							ALOGD("Found One NAL_type = 0x%02x in Sample 0x%02x " , *(p+4) , nal_type_buf );
+							p += 4 ;
+						}
+					}while(p + 3 < pEnd );
+
+
+
+#endif
+
+#if SAVE_EXTRACT_H264_TO_FILE
+	            if( fd >=0  ){
+	            	write(fd, buf , sampleSize);
+	            }
 	            if (sampleSize < 0) {
 	                sampleSize = 0;
 	                sawInputEOS = true;
 	                ALOGD("file input EOS");
 	            }
+#endif
+
 	            int64_t presentationTimeUs = AMediaExtractor_getSampleTime(extract);
 
 		        AMediaCodec_queueInputBuffer(codec,
@@ -321,21 +365,21 @@ static void* playback_thread(void* argv)
 	                sawInputEOS ? AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM : 0);
 	            AMediaExtractor_advance(extract);
 	        }else{
-	        	ALOGD("no input buffer right now, bufidx = %d " , bufidx);
+	        	//ALOGD("no input buffer right now, bufidx = %d " , bufidx);
 	        }
 	    }
 
 	    if (!sawOutputEOS) {
 	        AMediaCodecBufferInfo info;
 	        ssize_t status = AMediaCodec_dequeueOutputBuffer(codec, &info, 0);
-		    ALOGD("INFO status             =%d " , status);
+		    //ALOGD("INFO status             =%d " , status);
 
 	        if (status >= 0) {
 
-	            ALOGD("INFO flags              =%d " , info.flags );
-	            ALOGD("INFO presentationTimeUs =%lld " , info.presentationTimeUs );
-	            ALOGD("INFO size               =%d " , info.size );
-	            ALOGD("INFO offset             =%d " , info.offset );
+	            //ALOGD("INFO flags              =%d " , info.flags );
+	            //ALOGD("INFO presentationTimeUs =%lld " , info.presentationTimeUs );
+	            //ALOGD("INFO size               =%d " , info.size );
+	            //ALOGD("INFO offset             =%d " , info.offset );
 
 	            if (info.flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM) {
 	            	ALOGD("decode output EOS");
@@ -344,11 +388,12 @@ static void* playback_thread(void* argv)
 
 	            // 测试帧率
 	    		frameCount++ ;
-	    		struct timeval cur_time; memset(&cur_time, 0, sizeof(struct timeval));
-	    		gettimeofday(&cur_time, NULL);
-	    		uint64_t nowms = cur_time.tv_sec * 1000UL + cur_time.tv_usec / 1000UL;
-	    		ALOGD("fps = %llu " , frameCount * 1000 / (nowms - startTimeMs) );
-
+	    		if( frameCount % 100 == 0 ){
+	    			struct timeval cur_time;
+	    			gettimeofday(&cur_time, NULL);
+	    			uint64_t nowms = cur_time.tv_sec * 1000UL + cur_time.tv_usec / 1000UL;
+	    			ALOGD("fps = %llu " , frameCount * 1000 / (nowms - startTimeMs) );
+	    		}
 
 	            // 控制播放的速度
 	            int64_t presentationNano = info.presentationTimeUs * 1000;
@@ -358,7 +403,7 @@ static void* playback_thread(void* argv)
 	            }
 	            int64_t delay = (start_vender_time + presentationNano) - now ;
 	            if (delay > 0 && ! nwc->forceClose ) {
-	            	ALOGD("sleep %ld us " , delay/1000);
+	            	//ALOGD("sleep %ld us " , delay/1000);
 	                usleep(delay / 1000);
 	            }
 
@@ -426,7 +471,7 @@ static void* playback_thread(void* argv)
 					sleep 35977 us					<<<<<<<<<	延时控制
 	             * */
 	        } else if (status == AMEDIACODEC_INFO_TRY_AGAIN_LATER) {
-	        	ALOGD("no output buffer right now, try again later ");
+	        	//ALOGD("no output buffer right now, try again later ");
 	        } else {
 	        	ALOGD("unexpected info code: %zd", status);
 	        }
@@ -434,6 +479,11 @@ static void* playback_thread(void* argv)
 
 	}
 
+#if SAVE_EXTRACT_H264_TO_FILE
+    if( fd >=0  ){
+    	close(fd);
+    }
+#endif
 
 	if(codec != NULL){
 	    AMediaCodec_stop(codec);
