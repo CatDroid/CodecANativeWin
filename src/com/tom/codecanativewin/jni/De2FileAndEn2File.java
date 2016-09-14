@@ -6,8 +6,10 @@ public class De2FileAndEn2File {
 
 	native public void decodeAndEncode(Surface surface);
 
-	private long mNativeContext = 0; // for 64bits
+	native public void decodeH264File(Surface surface);
 	
+	private long mNativeContext = 0; // for 64bits
+
 	static {
 		System.loadLibrary("DeFileAndEnCode");
 	}

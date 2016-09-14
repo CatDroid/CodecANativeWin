@@ -1,20 +1,22 @@
 package com.tom.codecanativewin;
 
+
 import com.tom.codecanativewin.jni.De2FileAndEn2File;
-import com.tom.codecanativewin.jni.NativeWinCodec;
 
 import android.app.Activity;
-import android.graphics.PixelFormat;
 import android.os.Bundle;
 import android.util.Log;
+import android.view.Menu;
+import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
 import android.widget.Button;
 import android.widget.Toast;
 
-public class De2FileAndEn2FileActivity extends Activity {
+public class DisplayH264Activity extends Activity {
 
+ 
 	final public static String TAG = "stream_java";
 	private De2FileAndEn2File mDe2FileAndEn2File = null;
 
@@ -25,7 +27,7 @@ public class De2FileAndEn2FileActivity extends Activity {
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		setContentView(R.layout.activity_de2_file_and_en2_file);
+		setContentView(R.layout.activity_display_h264);
 
 		mSv = (SurfaceView) findViewById(R.id.viewSurface);
 		mSh = mSv.getHolder();
@@ -41,9 +43,9 @@ public class De2FileAndEn2FileActivity extends Activity {
 				if (mDe2FileAndEn2File == null)
 					mDe2FileAndEn2File = new De2FileAndEn2File();
 				if (surfaceCreated == false)
-					Toast.makeText(De2FileAndEn2FileActivity.this, "Surface Not Available now", Toast.LENGTH_LONG)
+					Toast.makeText(DisplayH264Activity.this, "Surface Not Available now", Toast.LENGTH_LONG)
 							.show();
-				mDe2FileAndEn2File.decodeAndEncode(mSh.getSurface());
+				mDe2FileAndEn2File.decodeH264File(mSh.getSurface());
 			}
 		});
 
@@ -68,5 +70,4 @@ public class De2FileAndEn2FileActivity extends Activity {
 			Log.d(TAG, "surfaceCreated destroyed");
 		}
 	}
-
 }

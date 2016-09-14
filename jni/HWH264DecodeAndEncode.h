@@ -36,7 +36,6 @@ class Hwh264DecodeAndEncode
 		bool             sawOutputEOS;
 		bool             flagEOF;
 	    void 				*mutex;
-		FILE				*fp_out;	
 		int 				 num;
 		unsigned             alltime;
 		AMediaCodec			*mEncode;
@@ -46,8 +45,12 @@ class Hwh264DecodeAndEncode
 		int64_t			mStartPlayNs ;
 		int64_t			mStartDecodeTimeMs ;
 		int64_t			mStartEncodeTimeMs ;
+		int64_t		 	mExtractFrameCount ;
 		int64_t			mDecodeFrameCount ;
 		int64_t			mEncodeFrameCount ;
+		void*			mCodecComplete ;
+		void*			mPauseExtractor ;
+		int 			mFd ;
 	public:
 		static void*  encode_thread(void* argv);
 		static void*  decode_thread(void* argv);
