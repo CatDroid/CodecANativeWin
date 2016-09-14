@@ -20,3 +20,6 @@ LOCAL_MODULE    := DeFileAndEnCode
 LOCAL_SRC_FILES := DeFileAndEnCode.cpp HWH264DecodeAndEncode.cpp utils.cpp
 
 include $(BUILD_SHARED_LIBRARY)
+
+##############################################################################
+include $(LOCAL_PATH)/tcp_udp/Android.mk
