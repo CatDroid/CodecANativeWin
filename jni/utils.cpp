@@ -4,7 +4,7 @@
 #include <semaphore.h>
 #include <time.h>
 #include <sys/time.h>
-
+#include <errno.h>
 #include "utils.h"
 
 #define LOG_TAG "streamer_sem"
@@ -72,5 +72,23 @@ int streamer_sem_wait(void* handle, int time_out)
     }
     return (-1);
 }
+
+int streamer_sem_try_wait(void* handle) // = 0 获得信号量(计数减一)
+{
+    if(NULL != handle){
+    	// 所有这些函数在成功时都返回 0；错误保持信号量值没有更改，-1 被返回，并设置 errno来指明错误
+    	int ret = sem_trywait((sem_t*)handle);
+    	if(ret == -1 ){
+    		return -errno ;
+    	}else if ( ret == 0 ){
+    		return 0;
+    	}else {
+    		STREAMER_TRACE("sem_trywait bad return value!");
+    	}
+
+    }
+    return (-1);
+}
+
 
 // -------------------
