@@ -1,74 +1,89 @@
 package com.tom.codecanativewin;
 
 
-import com.tom.codecanativewin.jni.DecodeH264;
+import com.tom.codecanativewin.jni.NativeAudioCodec;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.util.Log;
-import android.view.Menu;
-import android.view.MenuItem;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
 import android.view.View;
-import android.view.WindowManager;
 import android.widget.Button;
 import android.widget.Toast;
 
-public class DisplayH264Activity extends Activity {
+public class AudioDecActivity extends Activity {
 
+
+	final public static String TAG = "audio_dec";
  
-	final public static String TAG = "java_h264";
-	private DecodeH264 mH264de = null;
 
 	private SurfaceView mSv = null;
 	private SurfaceHolder mSh = null;
 	private boolean surfaceCreated = false;
 
+	private NativeAudioCodec mNativeAudioCodec = null;
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
-		
-		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); 
-		
-		setContentView(R.layout.activity_display_h264);
+		setContentView(R.layout.activity_audio_dec);
 
 		mSv = (SurfaceView) findViewById(R.id.viewSurface);
 		mSh = mSv.getHolder();
 		mSh.setKeepScreenOn(true);
 		mSh.addCallback(new SurfaceCallback());
-
-		 
+ 
 		((Button) findViewById(R.id.bStart)).setOnClickListener(new View.OnClickListener() {
+
 			@Override
 			public void onClick(View v) {
 
-				if (mH264de == null)
-					mH264de = new DecodeH264();
 				if (surfaceCreated == false){
-					Toast.makeText(DisplayH264Activity.this, "Surface Not Available now", Toast.LENGTH_LONG)
-							.show();
-				}else{
-					mH264de.start( mSh.getSurface() );
-				} 
+					ToastMessage("Surface Not Available now");
+				}
+				
+				if(mNativeAudioCodec == null ){
+					mNativeAudioCodec = new NativeAudioCodec();
+				}
+				
+				boolean result = mNativeAudioCodec.decodeAudioFile(mSh.getSurface());
+				ToastMessage("NativeCodec startup result = " + result);
+			 
 			}
 		});
 		
-	 
 		((Button) findViewById(R.id.bStop)).setOnClickListener(new View.OnClickListener() {
-
 			@Override
 			public void onClick(View v) {
 
-				if (mH264de != null){
-					mH264de.release();
-				}else{
-					Toast.makeText(DisplayH264Activity.this, "DecodeH264 Not Created now", Toast.LENGTH_LONG)
-					.show();
+				if(mNativeAudioCodec == null ){
+					ToastMessage("NativeCodec is NOT created yet");
+					return ;
 				}
+				mNativeAudioCodec.decodeForceClose();
 			}
 		});
+		
+	}
+	
+	
+	
+	
+	@Override
+	protected void onDestroy() {
+		if(mNativeAudioCodec != null ){
+			mNativeAudioCodec.decodeForceClose();
+		}
+		
+		super.onDestroy();
+	}
 
+
+
+
+	private void ToastMessage(String msg )
+	{
+		Toast.makeText(AudioDecActivity.this, msg, Toast.LENGTH_LONG).show();
 	}
 
 	private class SurfaceCallback implements SurfaceHolder.Callback {
@@ -90,4 +105,6 @@ public class DisplayH264Activity extends Activity {
 			Log.d(TAG, "surfaceCreated destroyed");
 		}
 	}
+
+
 }

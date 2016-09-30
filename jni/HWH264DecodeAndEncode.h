@@ -13,13 +13,10 @@
 class Hwh264DecodeAndEncode
 {
 	public:
-		static Hwh264DecodeAndEncode* createNewCodec(int32_t width, int32_t height, ANativeWindow *display, char* url);
+		Hwh264DecodeAndEncode();
 		~Hwh264DecodeAndEncode();
-		
-	private:
-		Hwh264DecodeAndEncode(int32_t width, int32_t height, ANativeWindow *display, char* url);
-	public:
-		int Decode(unsigned char * stream_buf, unsigned int stream_size,unsigned long presentationTimeUs);
+
+		int Decode( int32_t width, int32_t height, ANativeWindow *display, char* url );
 		void setEOF(bool flag);
 		void createCodecFormat(int width, int height, ANativeWindow *window, char* url);
 		void DecodeMediaFile();
@@ -54,6 +51,10 @@ class Hwh264DecodeAndEncode
 	public:
 		static void*  encode_thread(void* argv);
 		static void*  decode_thread(void* argv);
+
+typedef int ( * callbackftn ) ( int a ,int b) ;
+		callbackftn mCallbackFtn;
+		void setCallbackftn(callbackftn ftn);
 
 };
 

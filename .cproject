@@ -33,6 +33,7 @@
 									<listOptionValue builtIn="false" value="&quot;${workspace_loc:/CodecANativeWin/jni}&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;D:\android-ndk-r10d\toolchains\arm-linux-androideabi-4.8\prebuilt\windows-x86_64\lib\gcc\arm-linux-androideabi\4.8\include&quot;"/>
 									<listOptionValue builtIn="false" value="&quot;D:\android-ndk-r10d\toolchains\arm-linux-androideabi-4.8\prebuilt\windows-x86_64\lib\gcc\arm-linux-androideabi\4.8\include-fixed&quot;"/>
+									<listOptionValue builtIn="false" value="&quot;D:\android-ndk-r10d\sources\cxx-stl\stlport\stlport\stl&quot;"/>
 								</option>
 								<inputType id="com.android.gcc.inputType.1224484439" superClass="com.android.gcc.inputType"/>
 							</tool>

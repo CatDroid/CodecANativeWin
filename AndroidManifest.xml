@@ -47,6 +47,10 @@
             android:name=".DisplayH264Activity"
             android:label="@string/title_activity_display_h264" >
         </activity>
+        <activity
+            android:name=".AudioDecActivity"
+            android:label="@string/title_activity_audio_dec" >
+        </activity>
     </application>
 
 </manifest>

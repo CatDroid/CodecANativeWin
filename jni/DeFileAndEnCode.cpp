@@ -72,6 +72,11 @@ static void AttachDetachThread2JVM( JavaVM* vm ,
     ALOGD("AttachDetachThread2JVM %s Done" , (attach?"Attach":"Detach"));
 }
 
+static int msgCallback( int a ,int b)
+{
+	//ALOGD("msgCallback ! a %d  b %d " , a , b );
+	return 0;
+}
 
 static void* decode_and_encode_thread(void* argv)
 {
@@ -79,9 +84,10 @@ static void* decode_and_encode_thread(void* argv)
 	AttachDetachThread2JVM(nwc->jvm ,true,&nwc->jenv );
 
 
+	Hwh264DecodeAndEncode* hdecodeAndEncode = new Hwh264DecodeAndEncode();
 
-	// Hwh264DecodeAndEncode* hdecodeAndEncode = Hwh264DecodeAndEncode::createNewCodec(0,0,NULL,NULL);
-	Hwh264DecodeAndEncode* hdecodeAndEncode = Hwh264DecodeAndEncode::createNewCodec(0,0,nwc->pSurfaceWindow,NULL);
+	hdecodeAndEncode->setCallbackftn(msgCallback);
+	hdecodeAndEncode->Decode(0,0,nwc->pSurfaceWindow,NULL);
 
 	delete hdecodeAndEncode ;
 

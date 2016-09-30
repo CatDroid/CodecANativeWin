@@ -20,7 +20,7 @@
 #define STREAMER_TRACE ALOGD
 
 #define DECODE_COST 0
-#define ENCODE_THREAD 1
+#define ENCODE_THREAD 0
 #define SAVE_ENCODE_FILE 0
 #define USING_WINDOW 0
 
@@ -31,12 +31,7 @@
 #define TEST_FILE "/mnt/sdcard/1080p60fps.mp4"
 
 
-Hwh264DecodeAndEncode* Hwh264DecodeAndEncode::createNewCodec(int32_t width,
-		int32_t height, ANativeWindow *display, char* url) {
-	Hwh264DecodeAndEncode* pcodeandencode = new Hwh264DecodeAndEncode(width,
-			height, display, url);
-	return pcodeandencode;
-}
+
 
 Hwh264DecodeAndEncode::~Hwh264DecodeAndEncode() {
 	if (NULL != mDecode) {
@@ -73,18 +68,24 @@ int64_t Hwh264DecodeAndEncode::systemnanotime() {
 	return now.tv_sec * 1000000000LL + now.tv_nsec;
 }
 
-Hwh264DecodeAndEncode::Hwh264DecodeAndEncode(int32_t width, int32_t height,
-		ANativeWindow *display, char* url) :
-		window(display), mDecode(NULL), renderstart(-1), flagEOF(false), mutex(
+Hwh264DecodeAndEncode::Hwh264DecodeAndEncode() :
+		window(NULL), mDecode(NULL), renderstart(-1), flagEOF(false), mutex(
 				NULL), mFd(-1), sawInputEOS(false), sawOutputEOS(false), extract(
 				NULL), num(0), alltime(0) {
 	mutex = streamer_sem_create(0, 1, "hwcodec_eof");
-	createCodecFormat(width, height, display, url);
+
 }
 
-int Hwh264DecodeAndEncode::Decode(unsigned char * stream_buf,
-		unsigned int stream_size, unsigned long presentationTimeUs) {
-	// TO DO
+void Hwh264DecodeAndEncode::setCallbackftn(callbackftn ftn)
+{
+	this->mCallbackFtn = ftn;
+}
+
+int Hwh264DecodeAndEncode::Decode( int32_t width, int32_t height,
+		ANativeWindow *display, char* url ) {
+
+	createCodecFormat(width, height, display, url);
+
 	return 0 ;
 }
 
@@ -317,6 +318,37 @@ void* Hwh264DecodeAndEncode::encode_thread(void* argv) {
 	while (!encode_done) {
 		ssize_t status = AMediaCodec_dequeueOutputBuffer(pThis->mEncode,
 				&encode_info, 3000000L); //3s
+
+		/*
+		 * 	 encode_info.flag
+		 	 BUFFER_FLAG_CODEC_CONFIG
+			   编码器 将在任何合法的输出buffer前创建并返回被标记为 codec-config flag的codec specific data
+
+			 MediaCodec.INFO_OUTPUT_FORMAT_CHANGED  在编码开始后，会首先遇到format change 然后就可以通过MediaCodec.getOutputFormat获取csd-0 csd-1参数
+			 MediaFormat newFormat = codec.getOutputFormat();
+
+			 NAL type 		flag
+			 67 		 	2
+			 65				9
+			 41				8
+			 41				8
+			 .
+			 .
+			 65				9
+
+
+			编码在输出H264之前 首先拿到FormatChanged
+			D/TOM     ( 4806): MediaCodec format changed
+			D/TOM     ( 4806): sps > [0, 0, 0, 1, 103, 66, 0, 41, -115, -115, 64, 40, 3, -51, 0, -16, -120, 69, 56]
+			D/TOM     ( 4806): pps > [0, 0, 0, 1, 104, -54, 67, -56]
+			D/TOM     ( 4806): bufferInfo.flags = 0
+
+			后面开始接收到 SPS帧
+			D/TOM     ( 4806): nal type = 0x67 flag = 2
+
+			编码时候  取出来的编码outputBuffer 可能是 SPS帧+PPS帧
+
+		*/
 		if (status >= 0) {
 			if (encode_info.flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM) {
 				STREAMER_TRACE("encode: output EOS");
@@ -558,7 +590,9 @@ void Hwh264DecodeAndEncode::createCodecFormat(int width, int height,
 			//int nalu_type =  buf[4] & 0x1F ;
 			//STREAMER_TRACE("Extractor %02x %02x %02x %02x %02x %llu" , buf[0] , buf[1] , buf[2]  , buf[3]  , buf[4] , sampleTimeUs );
 
-
+			if(this->mCallbackFtn != NULL){
+				this->mCallbackFtn( (int)sampleTimeUs , (int)sampleSize);
+			}
 			/* 有些mp4 全部都是:
 				00 00 00 01 09
 				从mp4文件读取  所有的sample都是 nalu_type = 9 ??

@@ -55,5 +55,17 @@
         android:layout_marginTop="14dp"
         android:text="读H264文件显示"
         android:onClick="funcOnClick" />
+    
+    
+	<Button
+        android:id="@+id/bAccFileDecode"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignLeft="@+id/bDisplayH264"
+        android:layout_below="@+id/bDisplayH264"
+        android:layout_marginTop="14dp"
+        android:text="从文件解码ACC"
+        android:onClick="funcOnClick" />
+    
 
 </RelativeLayout>

@@ -4,6 +4,7 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -12,6 +13,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
 import android.os.storage.StorageManager;
+import android.util.Base64;
 import android.util.Log;
 import android.view.SurfaceHolder;
 import android.view.SurfaceView;
@@ -35,7 +37,12 @@ public class MainActivity extends Activity {
 		HandlerThread thread = new HandlerThread("session");
 		thread.start();
 		mHandler = new Handler(thread.getLooper());
+	
+		byte[] decodesps = Base64.decode("AAAAAWdCwB6adAPAPNgIgAAAAwCAAAAeR4sXUA==", Base64.NO_WRAP);
+		byte[] decodepps = Base64.decode("AAAAAWjOPIA=", Base64.NO_WRAP);
 		
+		Log.d(TAG, "decodesps = " + Arrays.toString(decodesps ) );
+		Log.d(TAG, "decodepps = " + Arrays.toString(decodepps ) );
 	}
 	
 	
@@ -82,7 +89,12 @@ public class MainActivity extends Activity {
 			start = new Intent(MainActivity.this, DisplayH264Activity.class);
 			this.startActivity(start);
 			this.finish();
-			break;			
+			break;	
+		case R.id.bAccFileDecode:
+			start = new Intent(MainActivity.this, AudioDecActivity.class);
+			this.startActivity(start);
+			this.finish();			
+			break;
 		default:
 			Log.d(TAG, "unknown Btn");
 			break;

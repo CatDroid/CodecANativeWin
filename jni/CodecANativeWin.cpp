@@ -17,6 +17,9 @@
 #define SAVE_EXTRACT_H264_TO_FILE 1  //  mp4容器提取的视频 NAL 保存到文件中/mnt/sdcard/nativeCodec.h264
 #define SEARCH_OTHER_NAL_IN_SAMPLE 1 //  通过Extractor取出的一个sample中 可能包含多个NAL
 
+#include <list>
+
+
 enum{
 	THREAD_STARTED = 0 ,
 	THREAD_STOP = 1
@@ -27,6 +30,12 @@ struct cnw_java_fields_t {
     jmethodID   post_event; // post event to Java Layer/Callback Function
 } g_cnw_java_fields;
 
+
+typedef struct {
+	int a ;
+	int b ;
+	int c ;
+} new_test;
 
 int jniThrowException(JNIEnv* env, const char* className, const char* msg) {
     if (env->ExceptionCheck()) {
@@ -145,6 +154,7 @@ static void* playback_thread(void* argv)
 		nwc->jenv->DeleteLocalRef(post_event);
 	}
 
+
 	AMediaCodec * codec = NULL;
 	AMediaExtractor* extract = AMediaExtractor_new();
 	media_status_t err = AMediaExtractor_setDataSourceFd(extract, nwc->fd, 0 , LONG_MAX);
@@ -239,7 +249,7 @@ static void* playback_thread(void* argv)
 				ALOGD("%s", pBuffer);
 				free(pBuffer);
 				/*
-					00 00 00 01 << sps个数
+					00 00 00 01 << NAL起始码  在H264 NAL中有00 00 00 01起始码   但是在ACC就不会有,直接"0x11,0x90"
 					67 64 00 29 << 在MP4文件中，SPS和PPS存在于AVCDecoderConfigurationRecord
 					ac d9 80 50
 					04 5f 97 01
@@ -248,7 +258,7 @@ static void* playback_thread(void* argv)
 					03 03 28 f1
 					83 19 a0
 					-
-					00 00 00 01 << pps个数
+					00 00 00 01 << NAL起始码
 					68 e9 7b 2c
 					8b
 				 *
@@ -348,12 +358,13 @@ static void* playback_thread(void* argv)
 	            if( fd >=0  ){
 	            	write(fd, buf , sampleSize);
 	            }
+#endif
 	            if (sampleSize < 0) {
 	                sampleSize = 0;
 	                sawInputEOS = true;
 	                ALOGD("file input EOS");
 	            }
-#endif
+
 
 	            int64_t presentationTimeUs = AMediaExtractor_getSampleTime(extract);
 
@@ -586,8 +597,17 @@ void createDecoder(int32_t width, int32_t height, ANativeWindow *display, char* 
 
 }
 //--------------------------------------------------------
+
+
+
 JNIEXPORT void JNICALL native_setAndplay(JNIEnv * env , jobject nwc_jobj , jstring jstr , jobject objSurface )
 {
+
+	new_test* p = new new_test();
+	p->a = 5;
+	delete p ;
+	//list<int> mListTest ;
+
 	char result[256];
 	NativeNWC* nwc = get_native_nwc(env,nwc_jobj);
 	if( nwc != NULL){

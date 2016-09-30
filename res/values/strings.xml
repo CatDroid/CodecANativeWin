@@ -9,5 +9,6 @@
     <string name="title_activity_de2_file_and_en2_file">De2FileAndEn2File</string>
     <string name="title_activity_media_player">MediaPlayerActivity</string>
     <string name="title_activity_display_h264">DisplayH264Activity</string>
+    <string name="title_activity_audio_dec">AudioDecActivity</string>
 
 </resources>
