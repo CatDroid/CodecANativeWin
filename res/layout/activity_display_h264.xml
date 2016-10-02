@@ -8,22 +8,15 @@
     android:paddingTop="@dimen/activity_vertical_margin"
     tools:context="com.tom.codecanativewin.DisplayH264Activity" >
 
-     <SurfaceView
-        android:id="@+id/viewSurface"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_alignParentBottom="true"
-        android:layout_alignParentLeft="true"
-        android:layout_alignParentRight="true"
-        android:layout_below="@+id/bStart" />
+
 
     <Button
         android:id="@+id/bStart"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_alignLeft="@+id/viewSurface"
+        android:layout_alignParentLeft="true"
         android:layout_alignParentTop="true"
-        android:layout_marginTop="21dp"
+        android:layout_marginTop="5dp"
         android:text="Start" />
 
     <Button
@@ -31,7 +24,30 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:layout_alignBottom="@+id/bStart"
-        android:layout_alignRight="@+id/viewSurface"
+        android:layout_alignParentRight="true"
         android:text="Stop" />
+
+	<LinearLayout
+	    android:layout_width="match_parent"
+	    android:layout_height="match_parent"
+	    android:layout_below="@+id/bStart"
+	    android:layout_centerVertical="true"
+	    android:orientation="vertical" 
+	    android:weightSum="2">
+	    
+		<SurfaceView
+         	android:id="@+id/viewSurface"
+         	android:layout_width="match_parent"
+         	android:layout_height="wrap_content"
+        	 android:layout_weight="1"/>
+	         
+    	<SurfaceView
+	        android:id="@+id/viewSurface1"
+	        android:layout_width="match_parent"
+	        android:layout_height="wrap_content"
+	        android:layout_weight="1"/>
+
+
+    </LinearLayout>
     
 </RelativeLayout>

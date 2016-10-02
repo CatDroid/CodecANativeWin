@@ -1,6 +1,5 @@
 
 #include <jni.h>
-#include <rs/cpp/util/RefBase.h>
 #include <android/native_window_jni.h> // ANativeWindow
 
 #include <fcntl.h>
@@ -16,9 +15,10 @@
 #include <list>
 
 
-#define LOG_TAG "jni_h264"
+#define LOG_TAG "jni_decodeh264"
 #include "vortex.h"
 #include "native_msg.h"
+#include "NativeContext.h"
 
 
 #define JAVA_CLASS_PATH "com/tom/codecanativewin/jni/DecodeH264"
@@ -26,240 +26,10 @@
 #define	H264_FILE  			3
 #define DECODEOUT_THREAD 	1
 
-int jniThrowException(JNIEnv* env, const char* className, const char* msg) {
-    if (env->ExceptionCheck()) {
-    	ALOGE("jniThrowException Exception in Exception : Clear and Throw New Excepiion");
-    	env->ExceptionClear();
-    }
-
-     jclass expclass =  env->FindClass(className );
-    if (expclass == NULL) {
-        ALOGE("Unable to find exception class %s", className);
-        return -1;
-    }
-
-    if ( env ->ThrowNew( expclass , msg) != JNI_OK) {
-        ALOGE("Failed throwing '%s' '%s'", className, msg);
-        return -1;
-    }
-
-    return 0;
-}
-int jniThrowNullPointerException(JNIEnv* env, const char* msg) {
-    return jniThrowException(env, "java/lang/NullPointerException", msg);
-}
-
-int jniThrowRuntimeException(JNIEnv* env, const char* msg) {
-    return jniThrowException(env, "java/lang/RuntimeException", msg);
-}
-
-int jniThrowIOException(JNIEnv* env, int errnum) {
-    char buffer[80];
-    const char* message = strerror(errnum);
-    return jniThrowException(env, "java/io/IOException", message);
-}
-
-
-static jboolean checkCallbackThread(JavaVM* vm , JNIEnv* isTargetEnv) {
-	JNIEnv* currentThreadEnv = NULL;
-    if ( vm->GetEnv( (void**) &currentThreadEnv, JNI_VERSION_1_4) != JNI_OK) {
-    	return JNI_FALSE;
-    }
-
-    if (isTargetEnv != currentThreadEnv || isTargetEnv == NULL) {
-        return JNI_FALSE;
-    }
-    return JNI_TRUE;
-}
-
-static void AttachThread2JVM( JavaVM* vm , JNIEnv** ppEnv ,/* out */
-									const char* const threadName)
-{
-	JavaVMAttachArgs args;
-	args.version = JNI_VERSION_1_4;
-	args.name = threadName ;
-	args.group = NULL;
-	vm->AttachCurrentThread(ppEnv, &args);
-}
-
-static void DetachThread2JVM(JavaVM* vm  , JNIEnv*pEnv /* in */ )
-{
-	if (!checkCallbackThread(vm, pEnv)) {
-		return;
-    }
-	vm->DetachCurrentThread();
-
-}
-
-int64_t system_nanotime()
-{
-    timespec now;
-    clock_gettime(CLOCK_MONOTONIC, &now);
-    return now.tv_sec * 1000000000LL + now.tv_nsec;
-}
-
-// ----------------------------------------------------------------------------------
-
-
 struct cnw_java_fields_t {
     jfieldID    context; 	// NOT IN USED
     jmethodID   post_event;
 } g_java_fields;
-
-typedef struct{
-	int msg_type ;
-	int arg1 ;
-	int arg2 ;
-	void* ptr ;
-} JNINativeMsg ;
-
-
-class NativeContext
-{
-public:
-	JavaVM* mJvm ;
-	ANativeWindow* mpSurfaceWindow;
-	int mFd ;
-	pthread_t mDeocdeTh  ;
-	bool mforceClose = false;
-
-	AMediaCodec* mDecoder = NULL;
-
-	jclass mJavaClass ;
-	jobject mJavaThizWef ;
-	pthread_t mEventLoopTh ;
-	pthread_mutex_t mNativeEventMutex ;
-	pthread_cond_t mNativeEventCond ;
-	jboolean mEventLoopExit ;
-	std::list<JNINativeMsg*> mEventList ;
-
-
-	pthread_t mDeocdeOutTh  ;
-
-};
-
-static void* cbEventThread(void* argv)
-{
-	JNIEnv* jenv = NULL;
-	NativeContext *pData = (NativeContext *)argv;
-	AttachThread2JVM( pData->mJvm , &jenv , "cbEventThread");
-
-
-	ALOGD("cbEventThread loop enter");
-
-	while( ! pData->mEventLoopExit ){
-
-		JNINativeMsg* msg = NULL ;
-		pthread_mutex_lock(&pData->mNativeEventMutex);
-		if( pData->mEventList.empty() == false )
-		{
-
-			msg = pData->mEventList.front();
-			pData->mEventList.pop_front();
-			ALOGD("cbEventThread pop one msg = %p", msg);
-		}else{
-			ALOGD("cbEventThread loop wait");
-			pthread_cond_wait(&pData->mNativeEventCond , &pData->mNativeEventMutex );
-			ALOGD("cbEventThread loop wait done ");
-		}
-		pthread_mutex_unlock(&pData->mNativeEventMutex);
-
-		if( msg != NULL ){
-
-			ALOGD("cbEventThread loop process msg");
-
-			switch( msg->msg_type ){
-				case MEDIA_BUFFER_DATA :
-					{
-						jobject objdir = jenv->NewDirectByteBuffer(  (void*)msg->ptr ,  (jlong)msg->arg1);
-						jenv->CallStaticVoidMethod(pData->mJavaClass, g_java_fields.post_event, pData->mJavaThizWef ,
-								msg->msg_type, msg->arg1, msg->arg2, objdir);
-
-						jenv->DeleteLocalRef(objdir);
-					}
-					break;
-
-				case MEDIA_TIME_UPDATE:
-				{
-					ALOGD("loop MEDIA_TIME_UPDATE");
-					jenv->CallStaticVoidMethod(pData->mJavaClass, g_java_fields.post_event, pData->mJavaThizWef ,
-							MEDIA_TIME_UPDATE, msg->arg1, msg->arg2, NULL);
-				}
-				break;
-				case THREAD_STOPED:
-					jenv->CallStaticVoidMethod(pData->mJavaClass, g_java_fields.post_event, pData->mJavaThizWef ,
-							THREAD_STOPED, 0, 0, NULL);
-					pData->mEventLoopExit = true ;
-					break;
-				default:
-					jenv->CallStaticVoidMethod(pData->mJavaClass, g_java_fields.post_event, pData->mJavaThizWef ,
-							msg->msg_type, msg->arg1, msg->arg2, NULL);
-					break;
-			}
-
-			delete msg ; // allocate(new) by sendCallbackEvent
-		}
-	}
-
-	ALOGD("cbEventThread loop exit");
-
-	DetachThread2JVM( pData->mJvm , jenv);
-	return NULL;
-}
-
-
-static void sendCallbackEvent( void * platform_data ,  int msg_type , int arg1 , int arg2,  void* ptr )
-{
-	NativeContext* pData = (NativeContext*)platform_data ;
-
-	JNINativeMsg* pmsg = new JNINativeMsg();
-	pmsg->msg_type = msg_type;
-	pmsg->arg1 = arg1;
-	pmsg->arg2 = arg2;
-	pmsg->ptr = ptr;
-
-
-	pthread_mutex_lock(&pData->mNativeEventMutex);
-	bool old_empty = pData->mEventList.empty() ;
-	pData->mEventList.push_back(pmsg);
-	if( old_empty ){
-		ALOGD("old_empty");
-		pthread_cond_signal(&pData->mNativeEventCond);
-	}
-	pthread_mutex_unlock(&pData->mNativeEventMutex);
-
-}
-
-static void cbEventThCreate( void * platform_data )
-{
-	NativeContext* pData = (NativeContext*)platform_data ;
-
-	// create EventLoop Thread
-	pData->mEventLoopTh = -1 ;
-	pData->mEventLoopExit = false ;
-	pthread_mutex_init(&pData->mNativeEventMutex, NULL );
-	pthread_cond_init(&pData->mNativeEventCond , NULL);
-	int ret = ::pthread_create(&pData->mEventLoopTh, NULL, ::cbEventThread, (void*)platform_data );
-	if( ret != 0 ){
-		// dump Error Info.
-	}
-	return ;
-}
-
-static void cbEventThExit(  void *  platform_data )
-{
-	NativeContext* pData = (NativeContext*)platform_data ;
-
-	if( pData->mEventLoopTh != -1 ){
-		pData->mEventLoopExit = true ; // drop all the pending message in the list
-		sendCallbackEvent(platform_data,THREAD_LOOP_END , 0 , 0 , NULL);
-		::pthread_join(pData->mEventLoopTh , NULL);
-		pthread_mutex_destroy(&pData->mNativeEventMutex);
-		pthread_cond_destroy(&pData->mNativeEventCond);
-	}
-}
-
-
 
 
 #if DECODEOUT_THREAD
@@ -279,7 +49,24 @@ static void* decodeOuth264_thread(void* argv)
 					sawOutputEOS = true;
 				}
 
-				sendCallbackEvent((void*)ctx , MEDIA_TIME_UPDATE , (int)(info.presentationTimeUs/1000/1000),  info.size , NULL);
+	            // 测试帧率
+				if( ctx->mframeCount++ != 0 ){
+					if( ctx->mframeCount % 100 == 0 ){
+							struct timeval cur_time;
+							gettimeofday(&cur_time, NULL);
+							uint64_t nowms = cur_time.tv_sec * 1000LL + cur_time.tv_usec / 1000LL;
+							ALOGD("fps = %llu ctx = %p " ,
+									ctx->mframeCount * 1000 / (nowms - ctx->mStartMs ),
+									ctx );
+						}
+				}else{
+					struct timeval current_time;
+					gettimeofday(&current_time, NULL);
+					ctx->mStartMs = current_time.tv_sec * 1000LL + current_time.tv_usec / 1000LL;
+				}
+
+
+				NativeContext::sendCallbackEvent((void*)ctx , MEDIA_TIME_UPDATE , (int)(info.presentationTimeUs/1000/1000),  info.size , NULL);
 
 				// render = true 如果configure时候配置了surface 就render到surface上
 				AMediaCodec_releaseOutputBuffer(decoder, status, info.size != 0);
@@ -297,6 +84,8 @@ static void* decodeOuth264_thread(void* argv)
 			}
 		}
 	}
+
+	return NULL;
 }
 #endif
 
@@ -365,7 +154,7 @@ static void* decodeh264_thread(void* argv)
 				        								sawInputEOS ? AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM : 0);
 
 #if 1
-				        usleep(30000);
+				        //usleep(30000);
 #else
 				       	if( sample_count % 100 == 0 ){
 				       		int sleepRand = rand()%10 ;
@@ -418,7 +207,10 @@ static void* decodeh264_thread(void* argv)
 }
 
 
-JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject nwc_jobj , jlong ctx , jobject objSurface , jobject weak_ref )
+JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject decodeH264_jobj ,
+										jlong ctx , jobject objSurface , jstring strpath,
+										jbyteArray jsps , jbyteArray jpps ,
+										jobject weak_ref )
 {
 	int ret ;
 	char result[256];
@@ -426,21 +218,25 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject nwc_jobj , jlong ctx 
 	ALOGD("ctx = %p" , (NativeContext*)ctx);
 	NativeContext* pData = (NativeContext*)ctx ;
 
-
-	pData->mpSurfaceWindow = ANativeWindow_fromSurface(env, objSurface);
-	pData->mJavaThizWef = env->NewGlobalRef(weak_ref); // for callback event
+	if( objSurface != NULL){
+		pData->mpSurfaceWindow = ANativeWindow_fromSurface(env, objSurface);
+	}else{
+		pData->mpSurfaceWindow = NULL;
+	}
 
 	do{
-		ALOGD("open %s", TEST_H264_FILE);
-		int tempFd = open(TEST_H264_FILE , O_RDONLY);
+		const char*const path = env->GetStringUTFChars(strpath,NULL);
+		ALOGD("open %s", path);
+		int tempFd = open(path , O_RDONLY);
 		if( tempFd < 0){
-			snprintf(result, sizeof(result), "Can Not Open File %s with %s!", TEST_H264_FILE , strerror(errno));
+			snprintf(result, sizeof(result), "Can Not Open File %s with %s!", path , strerror(errno));
 			ALOGE("%s",result);
 			jniThrowRuntimeException(env, result );
 			return ;
 		}else{
 			pData->mFd = tempFd;
 		}
+		env->ReleaseStringUTFChars(strpath,path);
 
 		pData->mDecoder = AMediaCodec_createDecoderByType("video/avc");
 		if (NULL == pData->mDecoder) {
@@ -460,55 +256,25 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject nwc_jobj , jlong ctx 
 		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_WIDTH, 656);
 		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_HEIGHT, 936 );
 
-		unsigned char sps[] = {
-	#if H264_FILE == 1  // mp4
-				0x00,0x00,0x00,0x01,
-				0x67,0x4d,0x40,0x1e,
-				0xe8,0x80,0xf0,0x53,
-				0x42,0x00,0x05,0x17,
-				0x62,0x01,0x31,0x2d,
-				0x01,0x1e,0x2c,0x5a,
-				0x24,
-	#elif H264_FILE == 2 // 3gp
-				0x00,0x00,0x00,0x01, // 如果发送rtp包的话  要跟IDR帧那样  去掉 00 00 00 01
-				0x67,0x42,0xc0,0x16,
-				0xda,0x02,0x80,0xf6,
-				0xff,0xc0,0x01,0x00,
-				0x00,0xc4,0x00,0x00,
-				0x03,0x00,0x04,0x00,
-				0x00,0x03,0x00,0x78,
-				0x3c,0x58,0xba,0x80,
-	#elif H264_FILE == 3 // 机器
-				0x00,0x00,0x00,0x01,
-				0x67,0x42,0x00,0x29,
-				0x8d,0x8d,0x40,0x28,
-				0x03,0xcd,0x00,0xf0,
-				0x88,0x45,0x38,
-	#endif
-		};
-		AMediaFormat_setBuffer(format , "csd-0" , sps , sizeof(sps) );	// sps
 
-		unsigned char pps[] = {
-	#if H264_FILE == 1
-				0x00,0x00,0x00,0x01,
-				0x68,0xeb,0xec,0x4c,
-				0x80,
-	#elif H264_FILE == 2
-				0x00,0x00,0x00,0x01, // 如果发送rtp包的话  要跟IDR帧那样  去掉 00 00 00 01
-				0x68,0xce,0x3c,0x80,
+		jbyte* csd = env->GetByteArrayElements(jsps,NULL);
+		int csd_len = env->GetArrayLength(jsps);
+		AMediaFormat_setBuffer(format , "csd-0" , csd , csd_len );	// sps
+		env->ReleaseByteArrayElements(jsps,csd,JNI_ABORT);
 
-	#elif H264_FILE == 3
-				0x00,0x00,0x00,0x01,
-				0x68,0xca,0x43,0xc8,
-	#endif
-		};
-
-		AMediaFormat_setBuffer(format , "csd-1" , pps , sizeof(pps) ); 	// pps
+		csd = env->GetByteArrayElements(jpps,NULL);
+		csd_len = env->GetArrayLength(jpps);
+		AMediaFormat_setBuffer(format , "csd-1" , csd , csd_len ); 	// pps
+		env->ReleaseByteArrayElements(jpps,csd,JNI_ABORT);
 
 		const char *sformat = AMediaFormat_toString(format);
 		ALOGD("decode format: %s", sformat);
 		media_status_t status ;
-		status = AMediaCodec_configure(pData->mDecoder, format, pData->mpSurfaceWindow, NULL, 0);
+		if( pData->mpSurfaceWindow != NULL ){
+			status = AMediaCodec_configure(pData->mDecoder, format, pData->mpSurfaceWindow, NULL, 0);
+		}else{
+			status = AMediaCodec_configure(pData->mDecoder, format, NULL , NULL, 0);// NOT Display!
+		}
 		if (status != AMEDIA_OK) {
 			ALOGE ("HWENCODE AMediaCodec_configure res<%d>\n",ret);
 			break;
@@ -541,7 +307,7 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject nwc_jobj , jlong ctx 
 	}
 
 	// 创建回调事件线程
-	cbEventThCreate(pData);
+	pData->setupEventLoop(env , decodeH264_jobj ,  weak_ref , g_java_fields.post_event );
 
 	// 创建解码输入线程
 	ret  = ::pthread_create(&pData->mDeocdeTh, NULL, ::decodeh264_thread, pData );
@@ -550,9 +316,9 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject nwc_jobj , jlong ctx 
 		snprintf(result, sizeof(result), "decodeOuth264_thread create error! with %s %d %d", strerror(errno),errno, ret );
 		ALOGE("%s",result);
 
-		jstring post_event =  env->NewStringUTF("decodeOuth264_thread create error");
-		env->CallVoidMethod(nwc_jobj, g_java_fields.post_event, THREAD_EXCEPTION , 0, 0 , post_event);
-		env->DeleteLocalRef(post_event);
+		//jstring post_event =  env->NewStringUTF("decodeh264_thread create error");
+		//env->CallStaticVoidMethod( pData->mJavaClass , g_java_fields.post_event, THREAD_EXCEPTION , 0, 0 , post_event);
+		//env->DeleteLocalRef(post_event);
 		goto ERROR;
 	}
 
@@ -565,13 +331,14 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject nwc_jobj , jlong ctx 
 		snprintf(result, sizeof(result), "decodeOuth264_thread create error! with %s %d %d", strerror(errno),errno, ret );
 		ALOGE("%s",result);
 
-		jstring post_event =  env->NewStringUTF("decodeOuth264_thread create error");
-		env->CallVoidMethod(nwc_jobj, g_java_fields.post_event, THREAD_EXCEPTION , 0, 0 , post_event);
-		env->DeleteLocalRef(post_event);
-		ALOGE("decodeOuth264_thread create error!");
+		//jstring post_event =  env->NewStringUTF("decodeOuth264_thread create error");
+		//env->CallStaticVoidMethod(pData->mJavaClass, g_java_fields.post_event, THREAD_EXCEPTION , 0, 0 , post_event);
+		//env->DeleteLocalRef(post_event);
+
 	}
 #endif
 
+	ALOGD("native startup done");
 	return ;
 ERROR:
 
@@ -585,20 +352,23 @@ ERROR:
 		pthread_join(pData->mDeocdeTh,NULL);
 	}
 
-
-	cbEventThExit(pData);
-
-
 	if(pData->mDecoder != NULL){
 		AMediaCodec_stop(pData->mDecoder);
 		AMediaCodec_delete(pData->mDecoder);
 		pData->mDecoder = NULL;
 	}
 
-	ANativeWindow_release(pData->mpSurfaceWindow);
-	if(pData->mFd >=0 ){ close(pData->mFd) ;  pData->mFd=-1; }
+	if( pData->mpSurfaceWindow != NULL ){
+		ANativeWindow_release(pData->mpSurfaceWindow);
+		pData->mpSurfaceWindow = NULL;
+	}
 
-	env->DeleteGlobalRef(pData->mJavaThizWef);
+	if(pData->mFd >=0 ){
+		close(pData->mFd) ;
+		pData->mFd=-1;
+	}
+
+	delete(pData);
 
 	jniThrowRuntimeException(env, result);
 
@@ -610,6 +380,7 @@ ERROR:
 
 JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 {
+	ALOGE("native_stop");
 	NativeContext* pData = (NativeContext*)ctx ;
 	if( pData != NULL){
 		pData->mforceClose = true ;
@@ -622,7 +393,7 @@ JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 			pthread_join(pData->mDeocdeTh,NULL);
 		}
 
-		cbEventThExit(pData);
+
 
 		if(pData->mDecoder != NULL){
 			AMediaCodec_stop(pData->mDecoder);
@@ -630,10 +401,16 @@ JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 			pData->mDecoder = NULL;
 		}
 
-		ANativeWindow_release(pData->mpSurfaceWindow);
-		if(pData->mFd >=0 ){ close(pData->mFd) ;  pData->mFd=-1; }
+		if( pData->mpSurfaceWindow != NULL ){
+			ANativeWindow_release(pData->mpSurfaceWindow);
+			pData->mpSurfaceWindow = NULL;
+		}
+		if(pData->mFd >=0 ){
+			close(pData->mFd) ;
+			pData->mFd=-1;
+		}
 
-		env->DeleteGlobalRef(pData->mJavaThizWef);
+		delete pData;
 
 	}else{
 		ALOGE("Native STOP Before");
@@ -643,20 +420,11 @@ JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 
 JNIEXPORT long native_setup(JNIEnv * env , jobject jobj)
 {
-	NativeContext* pData = new NativeContext();
-	env->GetJavaVM(&pData->mJvm);
-
-	pData->mpSurfaceWindow = NULL;
-	pData->mFd = -1 ;
-	pData->mDeocdeTh = -1 ;
-	pData->mforceClose = false ;
-	pData->mDecoder = NULL;
-
-	pData->mEventLoopExit = false;
-
-	pData->mDeocdeOutTh = -1 ;
-
+	JavaVM* jvm ;
+	env->GetJavaVM(&jvm);
+	NativeContext* pData = new NativeContext(jvm);
 	ALOGD("setup done pData = %p  " , pData);
+
 	return (long)pData ;
 }
 
@@ -675,10 +443,15 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 		ALOGE("%s:Class Not Found" , JAVA_CLASS_PATH );
 		return JNI_ERR ;
     }
+	if( env->ExceptionCheck() ){
+		jthrowable jt = env->ExceptionOccurred();
+		env->ExceptionClear();
+		ALOGD("Error Occured GetStaticMethodID !");
+	}
 
     JNINativeMethod method_table[] = {
     	{ "native_setup", "()J", (void*)native_setup },
-    	{ "native_start", "(JLandroid/view/Surface;Ljava/lang/Object;)V", (void*)native_start },
+    	{ "native_start", "(JLandroid/view/Surface;Ljava/lang/String;[B[BLjava/lang/Object;)V", (void*)native_start },
     	{ "native_stop",  "(J)V", (void*)native_stop },
     };
 	jniRegisterNativeMethods( env, JAVA_CLASS_PATH ,  method_table, NELEM(method_table)) ;
@@ -693,11 +466,17 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 
     g_java_fields.post_event = env->GetStaticMethodID(clazz, "postEventFromNative",
                                                "(Ljava/lang/Object;IIILjava/lang/Object;)V");
-
     if (g_java_fields.post_event == NULL) {
         ALOGE("Can't find android/hardware/Camera.postEventFromNative");
         return -1;
     }
+
+	if( env->ExceptionCheck() ){
+		jthrowable jt = env->ExceptionOccurred();
+		env->ExceptionClear();
+		ALOGD("Error Occured GetStaticMethodID !");
+	}
+
 
 	return JNI_VERSION_1_6 ;
 }

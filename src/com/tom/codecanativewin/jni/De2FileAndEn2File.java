@@ -5,8 +5,6 @@ import android.view.Surface;
 public class De2FileAndEn2File {
 
 	native public void decodeAndEncode(Surface surface);
-
-	native public void decodeH264File(Surface surface);
 	
 	private long mNativeContext = 0; // for 64bits
 

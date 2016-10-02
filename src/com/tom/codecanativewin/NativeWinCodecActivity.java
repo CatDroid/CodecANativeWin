@@ -30,7 +30,7 @@ public class NativeWinCodecActivity extends Activity {
 	private SurfaceView mSv = null;
 	private SurfaceHolder mSh = null;
 	private NativeWinCodec mNativeWinCodec = null;
-	private final String PLAY_THIS_FILE =  "/mnt/sdcard/fuzhubao_test.3gp";// "/mnt/sdcard/mtv.mp4";//"/mnt/sdcard/test1080p60fps.mp4";
+	private final String PLAY_THIS_FILE =  "/mnt/sdcard/1080p60fps.mp4";// "/mnt/sdcard/mtv.mp4";//"/mnt/sdcard/test1080p60fps.mp4";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {

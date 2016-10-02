@@ -43,20 +43,7 @@ struct  {
 } g_java_fields;
 
 
-static jboolean checkCallbackThread(JavaVM* vm , JNIEnv* isTargetEnv) {
 
-	JNIEnv* currentThreadEnv = NULL;
-    if ( vm->GetEnv( (void**) &currentThreadEnv, JNI_VERSION_1_6) != JNI_OK) {
-    	ALOGE("checkCallbackThread : Can Not Get JENV , please make sure run in Thread attached JVM ");
-    	return JNI_FALSE;
-    }
-
-    if (isTargetEnv != currentThreadEnv || isTargetEnv == NULL) {
-        ALOGE("checkCallbackThread : Not in the Same Thread  current : %p,  target: %p", currentThreadEnv, isTargetEnv);
-        return JNI_FALSE;
-    }
-    return JNI_TRUE;
-}
 
 static void AttachDetachThread2JVM( JavaVM* vm ,
 									jboolean attach ,

@@ -142,6 +142,27 @@ struct field {
     }                                                                           \
 }
 
+/// semphored-related
+ void* streamer_sem_create(int initial_count, int max_count, const char* sem_name);
+ int streamer_sem_destroy(void* handle);
+ int streamer_sem_get_count(void* handle, int *count);
+ int streamer_sem_post(void* handle);
+ int streamer_sem_wait(void* handle, int time_out);
+ int streamer_sem_try_wait(void* handle);
+
+ //// JNI-Thread-related
+ void DetachThread2JVM(JavaVM* vm  , JNIEnv*pEnv /* in */ );
+ void AttachThread2JVM( JavaVM* vm , JNIEnv** ppEnv ,/* out */
+ 									const char* const threadName);
+ jboolean checkCallbackThread(JavaVM* vm , JNIEnv* isTargetEnv);
+
+ /// JNI-Exception-related
+ int jniThrowIOException(JNIEnv* env, int errnum);
+ int jniThrowRuntimeException(JNIEnv* env, const char* msg) ;
+ int jniThrowNullPointerException(JNIEnv* env, const char* msg);
+ int jniThrowException(JNIEnv* env, const char* className, const char* msg);
+
+
 #else
 #define jniRegisterNativeMethods(ENV,CLASS,METHODS,NUM) 						\
 { 																				\

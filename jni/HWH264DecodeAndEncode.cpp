@@ -13,7 +13,6 @@
 #include <string.h>
 //#include <linux/err.h>		// ERR_PTR,PTR_ERR,IS_ERR
 
-#include "utils.h"
 
 #define LOG_TAG "streamer_jni"
 #include "vortex.h"

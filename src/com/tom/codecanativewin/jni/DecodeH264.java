@@ -7,7 +7,7 @@ import android.view.Surface;
 
 public class DecodeH264 {
 
-	private final static String TAG = "DecodeH264" ;
+	private final static String TAG = "java_decodeh264" ;
 	
 	public static final int MEDIA_PREPARED 				 	= 1;
 	public static final int MEDIA_SEEK_COMPLETE				= 2;
@@ -28,21 +28,30 @@ public class DecodeH264 {
 		mNativeContext = native_setup();
 	}
 	
-	public void start(Surface surface){
-		native_start(mNativeContext ,  surface , new WeakReference<DecodeH264>(this) );
+	public void start(Surface surface , String path , byte[] sps , byte pps[]){
+		native_start(mNativeContext ,  surface , path ,   sps ,   pps ,  new WeakReference<DecodeH264>(this) );
 	}
 	
 	public void release(){
 		native_stop( mNativeContext );
 	}
 	
+	public interface onInfoListener 
+	{
+		public void onInfo( int type , int arg1 ,int arg2);
+	}
+	private onInfoListener mOnInfoListener = null;
+	public void setInfoListener(onInfoListener info){
+		mOnInfoListener = info ;
+	}
+	
 	native private long native_setup();
-	native private void native_start( long ctx , Surface surface , Object wek_thiz );
+	native private void native_start( long ctx , Surface surface , String path , byte[] sps , byte pps[] , Object wek_thiz );
 	native private void native_stop( long ctx );
 	
     static private void postEventFromNative(Object weak_ref, int what, int arg1, int arg2, Object obj)
     {
-    	DecodeH264 mp = (DecodeH264)((WeakReference)weak_ref).get();
+    	DecodeH264 mp = (DecodeH264)((WeakReference<DecodeH264>)weak_ref).get();
     	if (mp == null) {
     		Log.e(TAG, "postEventFromNative: Null mp! what=" + what + ", arg1=" + arg1 + ", arg2=" + arg2);
     		return;
@@ -59,13 +68,14 @@ public class DecodeH264 {
     		break;
     		
     	case MEDIA_TIME_UPDATE:
-    		Log.d(TAG, "postEventFromNative update time = " + arg1 + " sec ; " + " size = " + arg2 );
+    		if( mp.mOnInfoListener !=null){
+    			mp.mOnInfoListener.onInfo(MEDIA_TIME_UPDATE , arg1 , arg2 );
+    		}
+    		break;
     	default:
+    		Log.i(TAG, "postEventFromNative default type ? : what=" + what + ", arg1=" + arg1 + ", arg2=" + arg2 );
     		break;
     	}
-    	 
-
-    	Log.i(TAG, "postEventFromNative: what=" + what + ", arg1=" + arg1 + ", arg2=" + arg2 );
     }
     
     

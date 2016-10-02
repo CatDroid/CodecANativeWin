@@ -1,6 +1,6 @@
 
 #include <jni.h>
-#include <rs/cpp/util/RefBase.h>
+
 #include <android/native_window_jni.h> // ANativeWindow
 
 #include <fcntl.h>
@@ -99,20 +99,6 @@ NativeNWC* get_native_nwc(JNIEnv *env, jobject thiz)
 }
 //--------------------------------------------------------
 
-static jboolean checkCallbackThread(JavaVM* vm , JNIEnv* isTargetEnv) {
-
-	JNIEnv* currentThreadEnv = NULL;
-    if ( vm->GetEnv( (void**) &currentThreadEnv, JNI_VERSION_1_6) != JNI_OK) {
-    	ALOGE("checkCallbackThread : Can Not Get JENV , please make sure run in Thread attached JVM ");
-    	return JNI_FALSE;
-    }
-
-    if (isTargetEnv != currentThreadEnv || isTargetEnv == NULL) {
-        ALOGE("checkCallbackThread : Not in the Same Thread  current : %p,  target: %p", currentThreadEnv, isTargetEnv);
-        return JNI_FALSE;
-    }
-    return JNI_TRUE;
-}
 
 static void AttachDetachThread2JVM( JavaVM* vm ,
 									jboolean attach ,
@@ -296,7 +282,7 @@ static void* playback_thread(void* argv)
 
 #if SAVE_EXTRACT_H264_TO_FILE
 	int fd = -1 ;
-	fd = open("/mnt/sdcard/nativeCodec.h264",O_CREAT | O_WRONLY | O_TRUNC );
+	fd = open("/mnt/sdcard/temp.h264",O_CREAT | O_WRONLY | O_TRUNC );
 	if( fd < 0 ) {
 		ALOGD("native Codec H264 file open error %d , %s  " , fd , strerror(errno));
 	}
@@ -415,7 +401,7 @@ static void* playback_thread(void* argv)
 	            int64_t delay = (start_vender_time + presentationNano) - now ;
 	            if (delay > 0 && ! nwc->forceClose ) {
 	            	//ALOGD("sleep %ld us " , delay/1000);
-	                usleep(delay / 1000);
+	                //usleep(delay / 1000);
 	            }
 
 				#if 0
