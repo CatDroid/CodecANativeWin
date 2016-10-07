@@ -15,6 +15,7 @@ public class DecodeH264 {
 	public static final int MEDIA_INFO_PAUSE_COMPLETED		= 4;
 	public static final int MEDIA_BUFFER_DATA				= 5;
 	public static final int MEDIA_TIME_UPDATE				= 6;
+	public static final int MEDIA_H264_SAMPLE				= 7;
 	
 	public static final int THREAD_LOOP_END 				= 999;
 	public static final int THREAD_STARTED					= (THREAD_LOOP_END + 1);
@@ -36,6 +37,8 @@ public class DecodeH264 {
 		native_stop( mNativeContext );
 	}
 	
+	
+	
 	public interface onInfoListener 
 	{
 		public void onInfo( int type , int arg1 ,int arg2);
@@ -44,6 +47,17 @@ public class DecodeH264 {
 	public void setInfoListener(onInfoListener info){
 		mOnInfoListener = info ;
 	}
+	
+	
+	public interface onDataListener 
+	{
+		public void onData( int data_type  ,  ABuffer data);
+	}
+	private onDataListener mOnDataListener = null;
+	public void setOnDataListener(onDataListener data){
+		mOnDataListener = data ;
+	}
+	
 	
 	native private long native_setup();
 	native private void native_start( long ctx , Surface surface , String path , byte[] sps , byte pps[] , Object wek_thiz );
@@ -70,6 +84,11 @@ public class DecodeH264 {
     	case MEDIA_TIME_UPDATE:
     		if( mp.mOnInfoListener !=null){
     			mp.mOnInfoListener.onInfo(MEDIA_TIME_UPDATE , arg1 , arg2 );
+    		}
+    		break;
+    	case MEDIA_H264_SAMPLE:
+    		if( mp.mOnDataListener !=null){
+    			mp.mOnDataListener.onData(MEDIA_H264_SAMPLE,(ABuffer)obj);
     		}
     		break;
     	default:

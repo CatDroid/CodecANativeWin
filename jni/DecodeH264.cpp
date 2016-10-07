@@ -8,6 +8,8 @@
 #include <sys/mman.h>
 #include <stdlib.h>
 
+#include <sys/prctl.h>
+
 #include <media/NdkMediaCodec.h>
 #include <media/NdkMediaFormat.h>
 #include <media/NdkMediaExtractor.h>
@@ -19,7 +21,7 @@
 #include "vortex.h"
 #include "native_msg.h"
 #include "NativeContext.h"
-
+#include "NativeBuffer.h"
 
 #define JAVA_CLASS_PATH "com/tom/codecanativewin/jni/DecodeH264"
 #define TEST_H264_FILE "/mnt/sdcard/client.h264"
@@ -39,6 +41,8 @@ static void* decodeOuth264_thread(void* argv)
 	AMediaCodec* decoder  = ctx->mDecoder ;
 	bool sawOutputEOS = false ;
 
+	prctl(PR_SET_NAME,"decodeOuth264_th") ;
+
 	while( !sawOutputEOS && !ctx->mforceClose ){
 		if (!sawOutputEOS) {
 			AMediaCodecBufferInfo info;
@@ -55,7 +59,7 @@ static void* decodeOuth264_thread(void* argv)
 							struct timeval cur_time;
 							gettimeofday(&cur_time, NULL);
 							uint64_t nowms = cur_time.tv_sec * 1000LL + cur_time.tv_usec / 1000LL;
-							ALOGD("fps = %llu ctx = %p " ,
+							ALOGD("fps = %lu ctx = %p " ,
 									ctx->mframeCount * 1000 / (nowms - ctx->mStartMs ),
 									ctx );
 						}
@@ -80,7 +84,14 @@ static void* decodeOuth264_thread(void* argv)
 			} else if (status == AMEDIACODEC_INFO_TRY_AGAIN_LATER) {
 				//ALOGD("no output buffer right now, try again later ");
 			} else {
-				ALOGD("unexpected info code: %d", status);
+				/**
+				 * 	size_t x;
+					ssize_t y;
+					printf("%zu\n", x);  // prints as unsigned decimal
+					printf("%zx\n", x);  // prints as hex
+					printf("%zd\n", y);  // prints as signed decimal
+				 */
+				ALOGD("unexpected info code: %zu", status);
 			}
 		}
 	}
@@ -95,6 +106,8 @@ static void* decodeh264_thread(void* argv)
 	NativeContext* ctx = (NativeContext*)argv;
 	JNIEnv* decodeh264_env ;
 
+	prctl(PR_SET_NAME,"decodeh264_th") ;
+
 	do{
 		int file_size = 0 ;
 		int sample_count = 0 ;
@@ -104,7 +117,7 @@ static void* decodeh264_thread(void* argv)
 		}
 		file_size = lseek(ctx->mFd, 0, SEEK_END);
 		int cur = lseek(ctx->mFd, 0, SEEK_SET);
-		ALOGD("file_size %d byte cur %d " , file_size , cur );
+		ALOGD("file_size %d byte file_position %d " , file_size , cur );
 
 		unsigned char * filemap = (unsigned char*)mmap(NULL , file_size  ,  PROT_READ , MAP_SHARED  , ctx->mFd,  0);
 		unsigned char * pCur = filemap ;
@@ -124,6 +137,7 @@ static void* decodeh264_thread(void* argv)
 			            size_t bufsize;// buffer的大小
 			            uint8_t *buf = AMediaCodec_getInputBuffer(ctx->mDecoder, bufidx, &bufsize);
 
+
 			            //  在这里读取文件
 			            int sampleSize = 0 ;
 			            unsigned char* p = pCur + 4 ;
@@ -141,17 +155,38 @@ static void* decodeh264_thread(void* argv)
 			            	break;
 			            }
 			            memcpy( buf , pCur, sampleSize );
-			            pCur = p ;
-
 		    			struct timeval cur_time;
 			    		gettimeofday(&cur_time, NULL);
 			    		uint64_t presentationTimeUs = cur_time.tv_sec * 1000UL * 1000UL + cur_time.tv_usec ;
+
+			    		int triSize = sampleSize ;
+
+				        ABuffer * pbuffer = ctx->m_pABufferManager->obtainBuffer();
+				        if( pbuffer != NULL){
+							ALOGD(" obtainBuffer %p " , pbuffer  );
+							if(triSize > pbuffer->mCaptical ){
+								ALOGE("sample too huge 1 ");
+								triSize = pbuffer->mCaptical ;
+							}
+							ALOGD(" pbuffer->mData = %p ",  pbuffer->mData );
+							memcpy( pbuffer->mData  , pCur  , triSize );
+							pbuffer->mDataType =  1 ;
+							pbuffer->mActualSize = triSize ;
+							pbuffer->mTimestamp = (int)(presentationTimeUs/1000/1000) ;
+							NativeContext::sendCallbackEvent((void*)ctx , MEDIA_H264_SAMPLE , 0 ,  0 , pbuffer);
+				        }else{
+				        	ALOGE("BufferManager->obtainBuffer abort");
+				        }
+
+			            pCur = p ;
 				        AMediaCodec_queueInputBuffer(ctx->mDecoder,
 				        								bufidx,
 				        								0,
 				        								sampleSize,
 				        								presentationTimeUs,
 				        								sawInputEOS ? AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM : 0);
+
+
 
 #if 1
 				        //usleep(30000);
@@ -200,7 +235,7 @@ static void* decodeh264_thread(void* argv)
 		}
 
 		munmap(filemap ,file_size );
-
+		ALOGD("umap file ");
 	}while(0);
 
 	return NULL;
@@ -368,7 +403,9 @@ ERROR:
 		pData->mFd=-1;
 	}
 
-	delete(pData);
+	ABufferManager*bm =  pData->m_pABufferManager;
+	delete pData; // stop event loop before free bufferManager
+	if(bm != NULL) delete bm;
 
 	jniThrowRuntimeException(env, result);
 
@@ -376,21 +413,44 @@ ERROR:
 }
 
 
+static void* cleaner_up_thread(void* ptr)
+{
+	ALOGI("enter cleaner up thread ");
+	pthread_detach(pthread_self());
+	prctl(PR_SET_NAME,"decodeh264_th") ;
+	ABufferManager* bm = (ABufferManager*)ptr ;
+	if(bm != NULL) delete bm;
+	ALOGI("exit cleaner up thread ");
+	return NULL;
+}
 
 
 JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 {
-	ALOGE("native_stop");
+	ALOGI("native_stop");
 	NativeContext* pData = (NativeContext*)ctx ;
 	if( pData != NULL){
+
 		pData->mforceClose = true ;
+
+		ABufferManager* bm =  pData->m_pABufferManager;
+		bm->stop_offer();
+		// 1. dont offer buffer any more
+		// 2. all thread and even event thread exit
+		// 3. ?? wait for all buffer release
+		// 4. delele buffer manager
 
 		if(pData->mDeocdeOutTh != -1){
 			pthread_join(pData->mDeocdeOutTh,NULL);
+			ALOGI("DeocdeOutTh exit");
 		}
 
 		if(pData->mDeocdeTh != -1){
 			pthread_join(pData->mDeocdeTh,NULL);
+			// 	如果这里不能返回一直join 将会导致
+			// 	UI main线程上的Handler不能处理延时任务,比如postDelayed(new Runnable()
+			//	最后出现ANR
+			ALOGI("DeocdeTh exit");
 		}
 
 
@@ -406,11 +466,18 @@ JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 			pData->mpSurfaceWindow = NULL;
 		}
 		if(pData->mFd >=0 ){
+			ALOGI("close file !");
 			close(pData->mFd) ;
 			pData->mFd=-1;
 		}
 
-		delete pData;
+
+		delete pData; // stop event loop before free bufferManager
+
+		// wait for buffer release / wound block
+		//
+		pthread_t temp ;
+		::pthread_create(&temp , NULL, ::cleaner_up_thread, bm );
 
 	}else{
 		ALOGE("Native STOP Before");
@@ -418,11 +485,13 @@ JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 }
 
 
+
 JNIEXPORT long native_setup(JNIEnv * env , jobject jobj)
 {
 	JavaVM* jvm ;
 	env->GetJavaVM(&jvm);
 	NativeContext* pData = new NativeContext(jvm);
+	pData->m_pABufferManager = new ABufferManager(1920*960*3/2 , 10);
 	ALOGD("setup done pData = %p  " , pData);
 
 	return (long)pData ;

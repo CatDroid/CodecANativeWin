@@ -389,7 +389,7 @@ static void* playback_thread(void* argv)
 	    			struct timeval cur_time;
 	    			gettimeofday(&cur_time, NULL);
 	    			uint64_t nowms = cur_time.tv_sec * 1000UL + cur_time.tv_usec / 1000UL;
-	    			ALOGD("fps = %llu " , frameCount * 1000 / (nowms - startTimeMs) );
+	    			ALOGD("fps = %lu " , frameCount * 1000 / (nowms - startTimeMs) );
 	    		}
 
 	            // 控制播放的速度

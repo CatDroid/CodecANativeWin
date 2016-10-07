@@ -40,7 +40,6 @@ int jniThrowRuntimeException(JNIEnv* env, const char* msg) {
 }
 
 int jniThrowIOException(JNIEnv* env, int errnum) {
-    char buffer[80];
     const char* message = strerror(errnum);
     return jniThrowException(env, "java/io/IOException", message);
 }
@@ -68,7 +67,7 @@ void AttachThread2JVM( JavaVM* vm , JNIEnv** ppEnv ,/* out */
 	if ( vm->AttachCurrentThread(ppEnv, &args) != JNI_OK){
 		ALOGE("Fatal Exception: AttachCurrentThread Fail ");
 	}else{
-		ALOGI("attach % thread to JVM done" , threadName);
+		ALOGI("attach %s thread to JVM done" , threadName);
 	}
 }
 

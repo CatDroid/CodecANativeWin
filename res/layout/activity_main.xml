@@ -66,6 +66,15 @@
         android:layout_marginTop="14dp"
         android:text="从文件解码ACC"
         android:onClick="funcOnClick" />
-    
+
+	<Button
+	    android:id="@+id/bByteBuffer"
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:layout_alignBaseline="@+id/bDisplayH264"
+	    android:layout_alignBottom="@+id/bDisplayH264"
+	    android:layout_toRightOf="@+id/bDisplayH264"
+	    android:text="测试DirectByteBuffer" 
+	    android:onClick="funcOnClick"/>
 
 </RelativeLayout>

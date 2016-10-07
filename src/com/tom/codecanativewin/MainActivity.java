@@ -95,6 +95,12 @@ public class MainActivity extends Activity {
 			this.startActivity(start);
 			this.finish();			
 			break;
+		case R.id.bByteBuffer:
+			start = new Intent(MainActivity.this, ByteBufferActivity.class);
+			this.startActivity(start);
+			this.finish();			
+			break;
+			
 		default:
 			Log.d(TAG, "unknown Btn");
 			break;

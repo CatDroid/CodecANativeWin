@@ -37,7 +37,10 @@ public:
 
 };
 
-struct  {
+// C++ Warning: anonymous type with no linkage used to declare variable
+// 匿名类型 只能是 static 不能在其他的编译单元cpp c中引用这个全局变量
+// 因为其他编译单元中 没法写 extern struct ??? g_java_fields ; 类型不能确定
+static struct  {
     jfieldID    context; 	// native object pointer
     jmethodID   post_event; // post event to Java Layer/Callback Function
 } g_java_fields;
@@ -216,7 +219,7 @@ static void* decodeACCOutput_thread(void* argv)
 					//	解码的结果大小要看 BufferInfo.size
 
 					if( outsize > buffer_size ){
-						ALOGE("byteArray is Too Small! MinBufferSize %d info.size %d outsize %d "
+						ALOGE("byteArray is Too Small! MinBufferSize %d info.size %d outsize %zd "
 											, buffer_size , info.size , outsize );
 
 						buffer_size = outsize ;
@@ -802,7 +805,7 @@ static void* extractAAC_thread(void* argv)
 	            	int64_t delay_us = (render_startup_time_us + presentationTimeUs) - systemustime();
 	            	if (delay_us > 0 )
 					{
-	            		ALOGD("delay %lld" , delay_us);
+	            		ALOGD("delay %ld" , delay_us);
 	            		usleep(delay_us);
 	           		}
 
