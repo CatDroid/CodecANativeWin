@@ -11,5 +11,6 @@
     <string name="title_activity_display_h264">DisplayH264Activity</string>
     <string name="title_activity_audio_dec">AudioDecActivity</string>
     <string name="title_activity_byte_buffer">ByteBufferActivity</string>
+    <string name="title_activity_rtsp_player">RtspPlayerActivity</string>
 
 </resources>

@@ -43,6 +43,8 @@ public class MainActivity extends Activity {
 		
 		Log.d(TAG, "decodesps = " + Arrays.toString(decodesps ) );
 		Log.d(TAG, "decodepps = " + Arrays.toString(decodepps ) );
+		
+		Log.d(TAG, "package name " + MainActivity.this.getPackageName() );
 	}
 	
 	
@@ -100,7 +102,11 @@ public class MainActivity extends Activity {
 			this.startActivity(start);
 			this.finish();			
 			break;
-			
+		case R.id.bRtsp:
+			start = new Intent(MainActivity.this, RtspPlayerActivity.class);
+			this.startActivity(start);
+			this.finish();			
+			break;
 		default:
 			Log.d(TAG, "unknown Btn");
 			break;

@@ -2,11 +2,14 @@
 #可以选择一个平台 编译 
 # MT6735 arm64-v8a 
 #		Unable to find a compatible ABI
-#		ABI's supported by the application: armeabi_v7a
+#		ABI's supported by the application: armeabi-v7a
 #		ABI's supported by the device: arm64-v8a, null
-APP_ABI := arm64-v8a
+#APP_ABI := arm64-v8a armeabi-v7a armeabi
+APP_ABI := arm64-v8a armeabi-v7a armeabi
 # With this you don't have to add -g to your compiler flags, ndk-build will do so automatically.
 #AAPP_OPTIM := debug
+
+
 
 # 不加下面一行  会出现 
 #  #include <list>
@@ -15,13 +18,20 @@ APP_ABI := arm64-v8a
 # 
 # 不用每个so库在Android.mk都加这个了,可能是cpp std更换了 不再是简化的system std
 # LOCAL_STATIC_LIBRARIES := stlport_static
-APP_STL := stlport_static
+APP_STL := stlport_shared
+#APP_STL := stlport_static 
+#APP_STL := gnustl_shared
 
 # system - 使用默认最小的C++运行库，这样生成的应用体积小，内存占用小，但部分功能将无法支持
 # stlport_static - 使用STLport作为静态库，推荐的
 # stlport_shared - STLport 作为动态库，这个可能产生兼容性和部分低版本的Android固件，目前不推荐使用。
 # gnustl_static - 使用 GNU libstdc++ 作为静态库
 
+
+
+# 为了确认是否设置成功，在ndk-build调用时增加参数V=1
+# 注意  arm64 只有版本 4.9  (android-ndk-r10d )
+# NDK_TOOLCHAIN_VERSION = 4.9
 
 
 # 与 AndroidMainfest.xml miniSDK必须一致  否则Unknown Application ABI

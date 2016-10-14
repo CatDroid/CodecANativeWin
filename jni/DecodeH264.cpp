@@ -59,7 +59,7 @@ static void* decodeOuth264_thread(void* argv)
 							struct timeval cur_time;
 							gettimeofday(&cur_time, NULL);
 							uint64_t nowms = cur_time.tv_sec * 1000LL + cur_time.tv_usec / 1000LL;
-							ALOGD("fps = %lu ctx = %p " ,
+							ALOGD("fps = %llu ctx = %p " ,
 									ctx->mframeCount * 1000 / (nowms - ctx->mStartMs ),
 									ctx );
 						}

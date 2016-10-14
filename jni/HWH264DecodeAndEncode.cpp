@@ -134,7 +134,7 @@ void* Hwh264DecodeAndEncode::decode_thread(void* argv) {
 				struct timeval current_time;
 				gettimeofday(&current_time, NULL);
 				uint64_t nowms = current_time.tv_sec * 1000UL + current_time.tv_usec / 1000UL;
-				STREAMER_TRACE("decode fps = %lu " , pThis->mDecodeFrameCount * 1000 / (nowms - pThis->mStartDecodeTimeMs) );
+				STREAMER_TRACE("decode fps = %llu " , pThis->mDecodeFrameCount * 1000 / (nowms - pThis->mStartDecodeTimeMs) );
 
 				/*
 				 * 1080p 60fps 使用MediaCodec解码帧率 只能去到最大50fps(只解码)
@@ -360,7 +360,7 @@ void* Hwh264DecodeAndEncode::encode_thread(void* argv) {
 				struct timeval current_time;
 				gettimeofday(&current_time, NULL);
 				uint64_t nowms = current_time.tv_sec * 1000UL + current_time.tv_usec / 1000UL;
-				STREAMER_TRACE("encode fps = %lu " , pThis->mEncodeFrameCount * 1000 / (nowms - pThis->mStartEncodeTimeMs) );
+				STREAMER_TRACE("encode fps = %llu " , pThis->mEncodeFrameCount * 1000 / (nowms - pThis->mStartEncodeTimeMs) );
 			}
 
 #if DECODE_COST
@@ -463,7 +463,7 @@ void Hwh264DecodeAndEncode::createCodecFormat(int width, int height,
 				可以查看format change
 				frameworks/native/include/media/openmax/OMX_IVCommon.h
 
-
+				目前来看  codec不配置window的话  高通820和mt6735 color-format 都是 19 COLOR_FormatYUV420Planar = 19;
 
 				*/
 			STREAMER_TRACE("width %d , height %d , rate = %d " , width , height , rate);
@@ -672,7 +672,7 @@ void Hwh264DecodeAndEncode::createCodecFormat(int width, int height,
             }
             int64_t delay = (mStartPlayNs + presentationNano) - now ;
             if (delay > 0  && !extract_end  ) {
-            	ALOGD("sleep %ld us " , delay/1000);
+            	ALOGD("sleep %lld us " , delay/1000);
                 usleep(delay / 1000);
             }
 #endif

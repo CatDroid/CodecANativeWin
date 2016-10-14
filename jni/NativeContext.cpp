@@ -66,6 +66,33 @@ void* NativeContext::cbEventThread(void* argv)
 				  	}
 				  	// ABuffer(long self , int type , int time , int cap ,int act_size , ByteBuffer data)
 				  	//
+				  	/*
+				  	APP_ABI := arm64-v8a armeabi-v7a armeabi
+					#APP_ABI := armeabi
+				  	注意 :
+						如果是64bit的机器 加载armeabi的库 会导致 这样回调Java接口的参数传递错误 !
+						1.传多参数的话 都会乱掉
+						2.如果传一个参数 目前发现没有问题
+				  	 	ALOGI("%p" , sizeof(void*) );
+					原因:
+				  		由于java层的long和jlong是 64bits 而底层long是 32bits
+				  		如果上层需要的是long  那么底层应该定义为int64_t的参数
+				  		如果定义成int 多个参数就会错误, 涉及到 <stdarg.h>
+
+				  			jobject jbqlbuffer = env->NewObject( jBQLBuffer.thizClass, jBQLBuffer.constructor ,
+							(uint64_t)pBuf, 	// long nativeThiz
+							(uint32_t)0 ,		// int data_type
+							jbuf ,				// ByteBuffer data
+							(int64_t)0,			// long arg1
+							(int64_t)0,			// long arg2
+							(int64_t)0,			// long arg3
+							(int64_t)0  		// long arg4
+							);
+
+						如果是 常量 12,那么 入栈的长度就是4个字节,结果在java层获取long,就用了8个字节,这样会导致va_arg(arg_ptr,参数类型);后面的就有出错
+
+				  	 */
+
 				  	jobject jabuffer = jenv->NewObject(
 				  			pData->jABuffer.thizClass, pData->jABuffer.constructor,
 				  			buf , buf->mDataType ,buf->mTimestamp, buf->mCaptical , buf->mActualSize , readOnlyBuffer);

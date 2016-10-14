@@ -77,4 +77,14 @@
 	    android:text="测试DirectByteBuffer" 
 	    android:onClick="funcOnClick"/>
 
+	<Button
+	    android:id="@+id/bRtsp"
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:layout_alignLeft="@+id/bAccFileDecode"
+	    android:layout_below="@+id/bAccFileDecode"
+	    android:layout_marginTop="14dp"
+	    android:text="RtspOverAndroid"
+	    android:onClick="funcOnClick" />
+
 </RelativeLayout>

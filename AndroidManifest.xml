@@ -55,6 +55,10 @@
             android:name=".ByteBufferActivity"
             android:label="@string/title_activity_byte_buffer" >
         </activity>
+        <activity
+            android:name=".RtspPlayerActivity"
+            android:label="@string/title_activity_rtsp_player" >
+        </activity>
     </application>
 
 </manifest>

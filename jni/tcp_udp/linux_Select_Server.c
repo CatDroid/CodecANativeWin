@@ -139,7 +139,7 @@ int main(int argc,char**argv){
 						isconnect[sock_client]=1;
 						FD_SET(sock_client,&fds);
 						ssize_t welcone_done = write(sock_client,WELCOME,sizeof(WELCOME));
-						printf("connect from %s write %d done \n", inet_ntoa(client_addr.sin_addr)
+						printf("connect from %s write %zd done \n", inet_ntoa(client_addr.sin_addr)
 																, welcone_done );
 						
 						packet_num = 0 ;
