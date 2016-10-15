@@ -72,7 +72,32 @@ public class CameraActivity extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_camera);
+		
+		CameraToMpegWrapper wrapper = new CameraToMpegWrapper();
+		Thread th = new Thread(wrapper, "codec test");
+		th.start();
+		//th.join();
 	}
+	
+	
+	private class CameraToMpegWrapper implements Runnable {
+	
+ 
+        public CameraToMpegWrapper(){
+        }
+
+        @Override
+        public void run() {
+	            try {
+	            	encodeCamera2mp4_thread();
+	            	// 在这里跑一段时间   使用Camera MediaCodec Surface进行录像  
+	            	// 最后线程退出
+	            } catch (Throwable th) {
+	            
+	            }
+        }
+	}
+	  
 
 	/**
 	 * Attempts to find a preview size that matches the provided width and
@@ -151,30 +176,24 @@ public class CameraActivity extends Activity {
 	private void prepareEncoder(int width, int height, int bitRate) {
 		mBufferInfo = new MediaCodec.BufferInfo();
 
+		// 配置一些编码参数 如果不支持的话 configure会抛出异常
+		// 编码器输入颜色空间是 COLOR_FormatSurface 因为我们从Camera preview那边获取数据作为输入
+		//  
+		// 从MediaCodec获取的Surface给到CodecInputSurface用于EGL工作
+		//
+		// 如果需要两个EGL context, 一个显示 一个录像  (这个测试APK没有显示，只有录像)
+		// 你可能需要延迟实例化 CodecInputSurface 知道 "display" EGL context 被创建
+		// 然后修改 'recoder'EGL contect的 eglGetCurrentContext() 中 share_context参数为'display' context
+	 
+		// 获得一个Surface作为编码器输入  而不是用dequeueInputBuffer
+		// surface 会给到Camera作为 preview
+		
 		MediaFormat format = MediaFormat.createVideoFormat(MIME_TYPE, width, height);
-
-		// Set some properties. Failing to specify some of these can cause the
-		// MediaCodec
-		// configure() call to throw an unhelpful exception.
 		format.setInteger(MediaFormat.KEY_COLOR_FORMAT, MediaCodecInfo.CodecCapabilities.COLOR_FormatSurface);
 		format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
 		format.setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE);
 		format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL);
-		if (VERBOSE)
-			Log.d(TAG, "format: " + format);
-
-		// Create a MediaCodec encoder, and configure it with our format. Get a
-		// Surface
-		// we can use for input and wrap it with a class that handles the EGL
-		// work.
-		//
-		// If you want to have two EGL contexts -- one for display, one for
-		// recording --
-		// you will likely want to defer instantiation of CodecInputSurface
-		// until after the
-		// "display" EGL context is created, then modify the eglCreateContext
-		// call to
-		// take eglGetCurrentContext() as the share_context argument.
+		Log.d(TAG, "format: " + format);
 		try {
 			mEncoder = MediaCodec.createEncoderByType(MIME_TYPE);
 		} catch (IOException e) {
@@ -185,33 +204,24 @@ public class CameraActivity extends Activity {
 			return;
 		}
 		mEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
-		mInputSurface = new CodecInputSurface(mEncoder.createInputSurface());
+		Surface surface = mEncoder.createInputSurface();
+		mInputSurface = new CodecInputSurface(surface);
 		mEncoder.start();
 
-		// Output filename. Ideally this would use Context.getFilesDir() rather
-		// than a
-		// hard-coded output directory.
+	
+		// 创建一个MediaMuxer 但是不能在这里添加video track和 start()这个Muxer
+		// 只能在Encoder编码一定数据后 INFO_OUTPUT_FORMAT_CHANGED 的时候再添加video track和start()
+		// 我们只是把 raw H264 ES(elementary stream )保存到mp4 没有声音
 		String outputPath = new File(OUTPUT_DIR, "test." + width + "x" + height + ".mp4").toString();
 		Log.i(TAG, "Output file is " + outputPath);
-
-		// Create a MediaMuxer. We can't add the video track and start() the
-		// muxer here,
-		// because our MediaFormat doesn't have the Magic Goodies. These can
-		// only be
-		// obtained from the encoder after it has started processing data.
-		//
-		// We're not actually interested in multiplexing audio. We just want to
-		// convert
-		// the raw H.264 elementary stream we get from MediaCodec into a .mp4
-		// file.
 		try {
 			mMuxer = new MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
 		} catch (IOException ioe) {
 			throw new RuntimeException("MediaMuxer creation failed", ioe);
 		}
-
 		mTrackIndex = -1;
 		mMuxerStarted = false;
+		
 	}
 
 	/**
@@ -249,13 +259,10 @@ public class CameraActivity extends Activity {
 	 */
 	private void drainEncoder(boolean endOfStream) {
 		final int TIMEOUT_USEC = 10000;
-		if (VERBOSE)
-			Log.d(TAG, "drainEncoder(" + endOfStream + ")");
 
 		if (endOfStream) {
-			if (VERBOSE)
 				Log.d(TAG, "sending EOS to encoder");
-			mEncoder.signalEndOfInputStream();
+			mEncoder.signalEndOfInputStream(); // 这样产生一个结束流输出
 		}
 
 		ByteBuffer[] encoderOutputBuffers = mEncoder.getOutputBuffers();
@@ -308,11 +315,13 @@ public class CameraActivity extends Activity {
 						throw new RuntimeException("muxer hasn't started");
 					}
 
-					// adjust the ByteBuffer values to match BufferInfo (not
-					// needed?)
+					// 根据BufferInfo的信息 更新ByteBuffer的位置
+					// ?? 可以不用
 					encodedData.position(mBufferInfo.offset);
 					encodedData.limit(mBufferInfo.offset + mBufferInfo.size);
 
+					// MediaMuxter写数据到文件中
+					// writeSampleData(int trackIndex, ByteBuffer byteBuf, BufferInfo bufferInfo)
 					mMuxer.writeSampleData(mTrackIndex, encodedData, mBufferInfo);
 					if (VERBOSE)
 						Log.d(TAG, "sent " + mBufferInfo.size + " bytes to muxer");
@@ -337,7 +346,7 @@ public class CameraActivity extends Activity {
 	 * Tests encoding of AVC video from Camera input. The output is saved as an
 	 * MP4 file.
 	 */
-	private void encodeCameraToMpeg() {
+	private void encodeCamera2mp4_thread() {
 		// arbitrary but popular values
 		int encWidth = 640;
 		int encHeight = 480;
@@ -347,7 +356,11 @@ public class CameraActivity extends Activity {
 		try {
 			prepareCamera(encWidth, encHeight);
 			prepareEncoder(encWidth, encHeight, encBitRate);
-			mInputSurface.makeCurrent();
+			mInputSurface.makeCurrent(); 
+			// 必须在prepareSurfaceTexture之前 进行 EGL14.eglMakeCurrent
+			// 否则 后面 进行GLES操作 比如  GLES20.glCompileShader  就会出现错误
+			
+			// 从SurfaceManager获得一个SurfaceTexture给到Camera preview
 			prepareSurfaceTexture();
 
 			mCamera.startPreview();
@@ -361,13 +374,9 @@ public class CameraActivity extends Activity {
 				// Feed any pending encoder output into the muxer.
 				drainEncoder(false); // 从encoder获取数据 并写到muxer中
 
-				// Switch up the colors every 15 frames. Besides demonstrating
-				// the use of
-				// fragment shaders for video editing, this provides a visual
-				// indication of
-				// the frame rate: if the camera is capturing at 15fps, the
-				// colors will change
-				// once per second.
+				// 每15帧 改变颜色
+				// Besides demonstrating the use of fragment shaders for video editing 
+				// 结果:如果摄像头capture是15帧率 那么颜色会每秒改变
 				if ((frameCount % 15) == 0) {
 					String fragmentShader = null;
 					if ((frameCount & 0x01) != 0) {
@@ -377,37 +386,25 @@ public class CameraActivity extends Activity {
 				}
 				frameCount++;
 
-				// Acquire a new frame of input, and render it to the Surface.
-				// If we had a
-				// GLSurfaceView we could switch EGL contexts and call
-				// drawImage() a second
-				// time to render it on screen. The texture can be shared
-				// between contexts by
-				// passing the GLSurfaceView's EGLContext as
-				// eglCreateContext()'s share_context
-				// argument.
-				mStManager.awaitNewImage();
-				mStManager.drawImage();
+				
+				// 请求a new frame作为输入,render他到Surface
+				// 如果有 GLSurfaceView 作为显示， 我们可以 切换 EGL contexts 和 之后 调用 drawImage() 
+				// 使其 render it 在屏幕上
+				// texture是可以被EGL contexts共享 通过在 eglCreateContext() 传递参数 share_context
+			
+				mStManager.awaitNewImage(); // mSurfaceTexture.updateTexImage();
+				mStManager.drawImage(); // mTextureRender.drawFrame(mSurfaceTexture);
 
-				// Set the presentation time stamp from the SurfaceTexture's
-				// time stamp. This
-				// will be used by MediaMuxer to set the PTS in the video.
-
+				// 根据SurfaceTexture来设置 the presentation time stamp 
+				// MediaMuxer用他来设置mp4中的PTS  
 				Log.d(TAG, "present: " + ((st.getTimestamp() - startWhen) / 1000000.0) + "ms");
-
 				mInputSurface.setPresentationTime(st.getTimestamp());
 
-				// Submit it to the encoder. The eglSwapBuffers call will block
-				// if the input
-				// is full, which would be bad if it stayed full until we
-				// dequeued an output
-				// buffer (which we can't do, since we're stuck here). So long
-				// as we fully drain
-				// the encoder before supplying additional input, the system
-				// guarantees that we
-				// can supply another frame without blocking.
-				Log.d(TAG, "sending frame to encoder");
-				mInputSurface.swapBuffers();
+				// 提交给编码器. 如果输入缓存满的话  swapBuffers会阻塞,直到我们从输出中获取数据
+				// 由于我们在一个线程中推送数据和获取数据，为了避免在这里堵塞
+				// 我们在drainEncoder(false)的时候，把所有输出output都获取写到文件
+				// 然后再 awaitNewImage --> drawImage --> swapBuffers	 
+				mInputSurface.swapBuffers();// 这样编码器就有输入数据了
 			}
 
 			// send end-of-stream to encoder, and drain remaining output
@@ -486,9 +483,9 @@ public class CameraActivity extends Activity {
 			if (surface == null) {
 				throw new NullPointerException();
 			}
-			mSurface = surface;
+			mSurface = surface; // 从MediaCodec获取的一个Surface 作为MediaCodec的输入
 
-			eglSetup(); // EGLDisplay 与 给定的 Surface 关联 
+			eglSetup(); // EGLDisplay 与 给定的 Surface (从MediaCodec获取的)关联 
 		}
 
 		/**
@@ -507,26 +504,82 @@ public class CameraActivity extends Activity {
 			if (!EGL14.eglInitialize(mEGLDisplay, version, 0, version, 1)) {
 				throw new RuntimeException("unable to initialize EGL14");
 			}
+			Log.d(TAG, "EGL version " + version[0] + " " + version[1] ); // 1 0  ???
+			// version中存放EGL 版本号，int[0]为主版本号，int[1]为子版本号
+            // 在Android 4.2/API 17 以前的版本没有EGL14，只有EGL10和EGL11，而这两个版本是不支持OpengGL ES 2.x的
 
-			// Configure EGL for recording and OpenGL ES 2.0.
-			int[] attribList = { EGL14.EGL_RED_SIZE, 8, EGL14.EGL_GREEN_SIZE, 8, EGL14.EGL_BLUE_SIZE, 8,
-					EGL14.EGL_ALPHA_SIZE, 8, EGL14.EGL_RENDERABLE_TYPE, EGL14.EGL_OPENGL_ES2_BIT,
-					EGL_RECORDABLE_ANDROID, 1, EGL14.EGL_NONE };
+            // Configure EGL for recording and OpenGL ES 2.0.  
+            // 构造需要的特性列表  配置EGL可以用于录像 和 OpenGL ES渲染绘图
+			
+			int[] attribList = { 
+					EGL14.EGL_RED_SIZE, 			8, // 指定RGB中的R大小（bits）
+					EGL14.EGL_GREEN_SIZE, 			8, 
+					EGL14.EGL_BLUE_SIZE, 			8,
+					EGL14.EGL_ALPHA_SIZE, 			8, // 指定Alpha大小，以上四项实际上指定了像素格式
+					EGL14.EGL_RENDERABLE_TYPE, 		EGL14.EGL_OPENGL_ES2_BIT,
+														// 指定渲染api类别 OPENGL_ES2	
+														// EGL14支持openGL ES 2
+					EGL_RECORDABLE_ANDROID, 1,			// recordable on android 可以录像 
+					EGL14.EGL_NONE };					// 总是以EGL10.EGL_NONE结尾
+			
+			/* 获取所有可用的configs，每个config都是EGL系统  根据特定规则选择出来的最符合特性列表要求的  一组特性
+			 *  这里只选择第一   EGLConfig数组长度是1 
+             	boolean android.opengl.EGL14.eglChooseConfig(
+             	EGLDisplay dpy, 
+             	int[] attrib_list, int attrib_listOffset,  					//	配置列表  第一个配置在配置列表的偏移
+             	EGLConfig[] configs, int configsOffset, int config_size,  	//	存放输出的configs  
+             	int[] num_config, int num_configOffset)						//	满足attributes的config一共有多少个
+        
+            	EGL14.eglGetConfigAttrib(EGLDisplay EGLConfig  ) 		    //  获取配置指定属性
+			 * 
+			 */
 			EGLConfig[] configs = new EGLConfig[1];
 			int[] numConfigs = new int[1];
 			EGL14.eglChooseConfig(mEGLDisplay, attribList, 0, configs, 0, configs.length, numConfigs, 0);
 			checkEglError("eglCreateContext RGB888+recordable ES2");
 
-			// Configure context for OpenGL ES 2.0.
-			int[] attrib_list = { EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, EGL14.EGL_NONE };
-			mEGLContext = EGL14.eglCreateContext(mEGLDisplay, configs[0], EGL14.EGL_NO_CONTEXT, attrib_list, 0);
+			
+            /* Configure context for OpenGL ES 2.0.
+             * 根据EGLConfig,创建 上下文 EGLContext   OpenGL ES 2.0 
+             * 
+             * EGLContext  eglCreateContext(EGLDisplay display, 
+             * 									EGLConfig config, 
+             * 									EGLContext share_context 是否有context共享？共享的contxt之间亦共享所有数据 EGL_NO_CONTEXT代表不共享
+             * 									int[] attrib_list);
+             * 
+             * 目前可用属性只有EGL_CONTEXT_CLIENT_VERSION, 1代表OpenGL ES 1.x, 2代表2.0
+             */
+			int[] attrib_list = { 
+						EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, 
+						EGL14.EGL_NONE };
+			mEGLContext = EGL14.eglCreateContext(mEGLDisplay, 
+													configs[0], 
+													EGL14.EGL_NO_CONTEXT, 
+													attrib_list,
+													0);
 			checkEglError("eglCreateContext");
 
-			// Create a window surface, and attach it to the Surface we
-			// received.
-			int[] surfaceAttribs = { EGL14.EGL_NONE }; // mSurface 是编码器的 MediaCodec.getInputSurface
-			// ???   调用eglCreateWindowSurface将Surface 转换为本地窗口 EGLSurface 
-			mEGLSurface = EGL14.eglCreateWindowSurface(mEGLDisplay, configs[0], mSurface, surfaceAttribs, 0);
+            /* Create a window surface, and attach it to the Surface we received.
+             * 在一个显示屏EGLDisplay, 创建一个window surface(EGLSurface) 并且关联到给定的Surface 
+             * 获取显存 
+            	EGLSurface android.opengl.EGL14.eglCreateWindowSurface(
+            			EGLDisplay dpy, EGLConfig config, 
+            			Object win, 
+            			int[] attrib_list, int offset)
+            			
+            	surfaceAttribs	用于描述WindowSurface类型 
+            		EGL_RENDER_BUFFER 	用于描述渲染buffer 所有的绘制在此buffer中进行 
+            		EGL_SINGLE_BUFFER 	单缓冲 绘制的同时用户即可见
+					EGL_BACK_BUFFER		后者属于双缓冲，前端缓冲用于显示
+										OpenGL ES 在后端缓冲中进行绘制，绘制完毕后使用eglSwapBuffers()交换前后缓冲，用户即看到在后缓冲中的内容
+										
+             * */
+			int[] surfaceAttribs = { EGL14.EGL_NONE };  
+			mEGLSurface = EGL14.eglCreateWindowSurface(mEGLDisplay, 
+														configs[0], 
+														mSurface, 
+														surfaceAttribs, 
+														0);
 			checkEglError("eglCreateWindowSurface");
 		}
 
@@ -555,10 +608,17 @@ public class CameraActivity extends Activity {
 		 * Makes our EGL context and surface current.
 		 */
 		public void makeCurrent() {
-			// 绑定Display、Surface、Context 
-			// eglMakeCurrent后生成的surface就可以利用opengl画图了
+			// OpenGL ES定义了客户端和服务端状态,所以OpenGL ES的contex包含了客户和服务端两个状态
+        	// 设置为当前的渲染环境 OpengGL的客户端API采用了隐含的context作为粉刷入口,而不是在绘图函数传入Context参数
+			// 因此EGL提供一个函数makeCurrent使某个Context变成当前使用状态
+			// 1. 每个线程最多可以为每个支持/使用客户端API(openGL)创建一个当前粉刷Cotext
+			// 2. 同一时刻 一个Context只能被一个线程设置为当前
+        	// boolean android.opengl.EGL14.eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx)
 			EGL14.eglMakeCurrent(mEGLDisplay, mEGLSurface, mEGLSurface, mEGLContext);
 			checkEglError("eglMakeCurrent");
+            // 环境初始化完毕，开始使用OpenGL ES 2.0 API 进行绘制
+            // GLES20.glxxxxxx ...
+            // 
 		}
 
 		/**
@@ -614,14 +674,14 @@ public class CameraActivity extends Activity {
 		 */
 		public SurfaceTextureManager() {
 			mTextureRender = new STextureRender();
-			mTextureRender.surfaceCreated();
+			mTextureRender.createSurface();
 
 			Log.d(TAG, "textureID=" + mTextureRender.getTextureId());
 			mSurfaceTexture = new SurfaceTexture(mTextureRender.getTextureId());
 
+			// ????????????
 			// This doesn't work if this object is created on the thread that
-			// CTS started for
-			// these test cases.
+			// CTS started for these test cases.
 			//
 			// The CTS-created thread has a Looper, and the SurfaceTexture
 			// constructor will
@@ -634,9 +694,8 @@ public class CameraActivity extends Activity {
 			// a Looper, so that SurfaceTexture uses the main application Looper
 			// instead.
 			//
-			// Java language note: passing "this" out of a constructor is
-			// generally unwise,
-			// but we should be able to get away with it here.
+
+			// 如果 SurfaceTexture 有一个 a new image frame 就回调
 			mSurfaceTexture.setOnFrameAvailableListener(this);
 		}
 
@@ -667,7 +726,7 @@ public class CameraActivity extends Activity {
 
 		/**
 		 * Latches the next buffer into the texture. Must be called from the
-		 * thread that created the OutputSurface object.
+		 * thread that created the OutputSurface object. ??????????
 		 */
 		public void awaitNewImage() {
 			final int TIMEOUT_MS = 2500;
@@ -692,12 +751,14 @@ public class CameraActivity extends Activity {
 			}
 
 			// Latch the data.
+			// Update the texture image to the most recent frame from the image stream. 
 			mTextureRender.checkGlError("before updateTexImage");
 			mSurfaceTexture.updateTexImage();
 		}
 
 		/**
 		 * Draws the data from SurfaceTexture onto the current EGL surface.
+		 * 从SurfaceTextrue中的数据 经过Render处理 画到 EGL surface.
 		 */
 		public void drawImage() {
 			mTextureRender.drawFrame(mSurfaceTexture);
@@ -705,6 +766,11 @@ public class CameraActivity extends Activity {
 
 		@Override
 		public void onFrameAvailable(SurfaceTexture st) {
+			
+        	/*
+        	 * 	SurfaceTexture给到了Camera  Camera有预览数据的时候会回调这个
+        	 * 	SurfaceTexture.OnFrameAvailableListener 
+        	 */
 			if (VERBOSE)
 				Log.d(TAG, "new frame available");
 			synchronized (mFrameSyncObject) {
@@ -754,9 +820,12 @@ public class CameraActivity extends Activity {
 		private int maTextureHandle;
 
 		public STextureRender() {
-			mTriangleVertices = ByteBuffer.allocateDirect(mTriangleVerticesData.length * FLOAT_SIZE_BYTES)
-					.order(ByteOrder.nativeOrder()).asFloatBuffer();
-			mTriangleVertices.put(mTriangleVerticesData).position(0);
+			int size = mTriangleVerticesData.length * FLOAT_SIZE_BYTES ; //FLOAT_SIZE_BYTES=4 每个float用4个字节存储
+			ByteBuffer data  = ByteBuffer.allocateDirect(size);
+			data.order(ByteOrder.nativeOrder());
+			mTriangleVertices = data.asFloatBuffer();
+			mTriangleVertices.put(mTriangleVerticesData);
+			mTriangleVertices.position(0);
 
 			Matrix.setIdentityM(mSTMatrix, 0);
 		}
@@ -767,6 +836,8 @@ public class CameraActivity extends Activity {
 
 		public void drawFrame(SurfaceTexture st) {
 			checkGlError("onDrawFrame start");
+			
+			// 拿到SurfaceTexture的坐标系
 			st.getTransformMatrix(mSTMatrix);
 
 			// (optional) clear to green so we can see if we're failing to set
@@ -834,7 +905,7 @@ public class CameraActivity extends Activity {
 		 * Initializes GL state. Call this after the EGL surface has been
 		 * created and made current.
 		 */
-		public void surfaceCreated() {
+		public void createSurface() {
 			mProgram = createProgram(VERTEX_SHADER, FRAGMENT_SHADER);
 			if (mProgram == 0) {
 				throw new RuntimeException("failed creating program");
@@ -849,10 +920,12 @@ public class CameraActivity extends Activity {
 			muSTMatrixHandle = GLES20.glGetUniformLocation(mProgram, "uSTMatrix");
 			checkLocation(muSTMatrixHandle, "uSTMatrix");
 
+			// GenTextures  产生一个GLES20纹理 
 			int[] textures = new int[1];
 			GLES20.glGenTextures(1, textures, 0);
-
 			mTextureID = textures[0];
+			
+			// BindTexture 绑定指定纹理
 			GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, mTextureID);
 			checkGlError("glBindTexture mTextureID");
 
@@ -885,6 +958,7 @@ public class CameraActivity extends Activity {
 			GLES20.glShaderSource(shader, source);
 			GLES20.glCompileShader(shader);
 			int[] compiled = new int[1];
+			// 如果没有进行 EGL14.eglMakeCurrent 这里就出错 即compiled[0] == 0
 			GLES20.glGetShaderiv(shader, GLES20.GL_COMPILE_STATUS, compiled, 0);
 			if (compiled[0] == 0) {
 				Log.e(TAG, "Could not compile shader " + shaderType + ":");
