@@ -12,6 +12,7 @@ import android.os.Environment;
 import android.util.Log;
 import android.view.Surface;
 
+import android.view.SurfaceView;
 // import android.hardware.camera2.CameraDevice;
 // import android.hardware.camera2.CameraManager;
 // import android.hardware.camera2.CaptureResult;
@@ -22,6 +23,7 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
 import android.media.MediaMuxer;
+import android.media.MediaPlayer;
 import android.opengl.EGL14;
 import android.opengl.EGLConfig;
 import android.opengl.EGLContext;
@@ -33,7 +35,7 @@ import android.opengl.GLES20;
 import android.opengl.Matrix;
 import android.graphics.SurfaceTexture;
 
-public class CameraActivity extends Activity {
+public class CamRecbyOpenGL extends Activity {
 
 	private final static String TAG = "camera";
 	private static final boolean VERBOSE = false; // lots of logging
@@ -156,6 +158,19 @@ public class CameraActivity extends Activity {
 		} catch (IOException ioe) {
 			throw new RuntimeException("setPreviewTexture failed", ioe);
 		}
+		// Surface 由以下两个得到
+		//   SurfaceView.getHolder().getSurface()		<---- SurfaceView 
+		//
+		//	 new Surface(SurfaceTexture)				<---- SurfaceTexture 
+		//		data
+		//			-->ANativeWindow-->
+		//			-->Surface
+		//			-->SurfaceTexture.OnFrameAvailableListener --> 设置标记 让Renderer.onDrawFrame可以从SurfaceTexture获取数据 并画图
+		//		
+		//		GLSurfaceView.setRenderer(SGLSurfaceView.Renderer)
+		//		setRenderMode(RENDERMODE_CONTINUOUSLY) 这样就会不定底调用Renderer.onDrawFrame
+		//		在GLSurfaceView.Renderer.onDrawFrame回调中使用OpenGL就是把图画到了GLSurfaceView(内部把surfaceView和EGLSurface关联了 EGL.makeCurrent)
+		
 	}
 
 	/**
@@ -353,6 +368,7 @@ public class CameraActivity extends Activity {
 		int encBitRate = 6000000; // Mbps
 		Log.d(TAG, MIME_TYPE + " output " + encWidth + "x" + encHeight + " @" + encBitRate);
 
+		
 		try {
 			prepareCamera(encWidth, encHeight);
 			prepareEncoder(encWidth, encHeight, encBitRate);

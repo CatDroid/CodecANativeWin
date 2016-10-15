@@ -34,7 +34,7 @@
             android:label="@string/title_activity_native_win_codec" >
         </activity>
         <activity
-            android:name=".CameraActivity"
+            android:name=".CamRecbyOpenGL"
             android:label="@string/title_activity_camera" >
         </activity>
         <activity

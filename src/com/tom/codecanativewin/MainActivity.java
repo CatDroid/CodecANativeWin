@@ -73,7 +73,7 @@ public class MainActivity extends Activity {
 			this.finish();
 			break;
 		case R.id.bCamera:
-			start = new Intent(MainActivity.this, CameraActivity.class);
+			start = new Intent(MainActivity.this, CamRecbyOpenGL.class);
 			this.startActivity(start);
 			this.finish();
 			break;
