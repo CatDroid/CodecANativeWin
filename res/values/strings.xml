@@ -12,5 +12,6 @@
     <string name="title_activity_audio_dec">AudioDecActivity</string>
     <string name="title_activity_byte_buffer">ByteBufferActivity</string>
     <string name="title_activity_rtsp_player">RtspPlayerActivity</string>
+    <string name="title_activity_new_camera">NewCameraActivity</string>
 
 </resources>

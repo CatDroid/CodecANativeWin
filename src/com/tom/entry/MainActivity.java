@@ -1,10 +1,24 @@
-package com.tom.codecanativewin;
+package com.tom.entry;
 
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.util.Arrays;
+
+import com.tom.Camera.CamRecbyOpenGL;
+import com.tom.Camera.NewCameraActivity;
+import com.tom.Camera.OldCameraActivity;
+import com.tom.codecanativewin.AudioDecActivity;
+import com.tom.codecanativewin.ByteBufferActivity;
+import com.tom.codecanativewin.De2FileAndEn2FileActivity;
+import com.tom.codecanativewin.DisplayH264Activity;
+import com.tom.codecanativewin.MediaPlayerActivity;
+import com.tom.codecanativewin.NativeWinCodecActivity;
+import com.tom.codecanativewin.R;
+import com.tom.codecanativewin.RtspPlayerActivity;
+import com.tom.codecanativewin.R.id;
+import com.tom.codecanativewin.R.layout;
 
 import android.app.Activity;
 import android.content.Intent;
@@ -104,6 +118,11 @@ public class MainActivity extends Activity {
 			break;
 		case R.id.bRtsp:
 			start = new Intent(MainActivity.this, RtspPlayerActivity.class);
+			this.startActivity(start);
+			this.finish();			
+			break;
+		case R.id.bCam2OpenGL:
+			start = new Intent(MainActivity.this, OldCameraActivity.class);
 			this.startActivity(start);
 			this.finish();			
 			break;

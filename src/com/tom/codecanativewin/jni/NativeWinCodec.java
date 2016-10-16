@@ -1,6 +1,6 @@
 package com.tom.codecanativewin.jni;
 
-import com.tom.codecanativewin.MainActivity;
+import com.tom.entry.MainActivity;
 
 import android.util.Log;
 import android.view.Surface;

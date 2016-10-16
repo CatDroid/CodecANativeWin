@@ -1,4 +1,4 @@
-package com.tom.codecanativewin;
+package com.tom.Camera;
 
 import java.io.File;
 import java.io.IOException;
@@ -6,12 +6,14 @@ import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
 
+import com.tom.codecanativewin.R;
+import com.tom.codecanativewin.R.layout;
+
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.Environment;
 import android.util.Log;
 import android.view.Surface;
-
 import android.view.SurfaceView;
 // import android.hardware.camera2.CameraDevice;
 // import android.hardware.camera2.CameraManager;
@@ -50,7 +52,11 @@ public class CamRecbyOpenGL extends Activity {
 	private static final int FRAME_RATE = 30; // 30fps
 	private static final int IFRAME_INTERVAL = 5; // 5 seconds between I-frames
 	private static final long DURATION_SEC = 8; // 8 seconds of video
-
+	private static final int ENC_WIDTH = 640 ;
+	private static final int ENC_HEIGHT = 480;
+	private static final int ENC_BITRATE = 6000000 ;
+ 
+	
 	// Fragment shader that swaps color channels around.
 	private static final String SWAPPED_FRAGMENT_SHADER = "#extension GL_OES_EGL_image_external : require\n"
 			+ "precision mediump float;\n" + "varying vec2 vTextureCoord;\n" + "uniform samplerExternalOES sTexture;\n"
@@ -74,6 +80,10 @@ public class CamRecbyOpenGL extends Activity {
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_camera);
+		
+		// 可以不在同一个线程中 创建EGLDislpay和EGLContext
+		// 但是makeCurrent要在使用OpenGL的线程中 这样才能在对应的线程获得纹理ID
+		// prepareEncoder(ENC_WIDTH, ENC_HEIGHT, ENC_BITRATE); 
 		
 		CameraToMpegWrapper wrapper = new CameraToMpegWrapper();
 		Thread th = new Thread(wrapper, "codec test");
@@ -197,7 +207,7 @@ public class CamRecbyOpenGL extends Activity {
 		// 从MediaCodec获取的Surface给到CodecInputSurface用于EGL工作
 		//
 		// 如果需要两个EGL context, 一个显示 一个录像  (这个测试APK没有显示，只有录像)
-		// 你可能需要延迟实例化 CodecInputSurface 知道 "display" EGL context 被创建
+		// 你可能需要延迟实例化 CodecInputSurface 直到 "display" EGL context 被创建
 		// 然后修改 'recoder'EGL contect的 eglGetCurrentContext() 中 share_context参数为'display' context
 	 
 		// 获得一个Surface作为编码器输入  而不是用dequeueInputBuffer
@@ -363,26 +373,28 @@ public class CamRecbyOpenGL extends Activity {
 	 */
 	private void encodeCamera2mp4_thread() {
 		// arbitrary but popular values
-		int encWidth = 640;
-		int encHeight = 480;
-		int encBitRate = 6000000; // Mbps
-		Log.d(TAG, MIME_TYPE + " output " + encWidth + "x" + encHeight + " @" + encBitRate);
+
+		Log.d(TAG, MIME_TYPE + " output " + ENC_WIDTH 
+				+ "x" + ENC_HEIGHT + " @" + ENC_BITRATE);
 
 		
 		try {
-			prepareCamera(encWidth, encHeight);
-			prepareEncoder(encWidth, encHeight, encBitRate);
+			
+			prepareCamera(ENC_WIDTH, ENC_HEIGHT);
+			
+			prepareEncoder(ENC_WIDTH, ENC_HEIGHT, ENC_BITRATE); 
+			
 			mInputSurface.makeCurrent(); 
 			// 必须在prepareSurfaceTexture之前 进行 EGL14.eglMakeCurrent
-			// 否则 后面 进行GLES操作 比如  GLES20.glCompileShader  就会出现错误
+			// 否则 后面 进行GLES操作 比如  GLES20.glGetShaderiv  就会出现错误
 			
 			// 从SurfaceManager获得一个SurfaceTexture给到Camera preview
 			prepareSurfaceTexture();
 
 			mCamera.startPreview();
 
-			long startWhen = System.nanoTime();
-			long desiredEnd = startWhen + DURATION_SEC * 1000000000L;
+			long startWhen = System.nanoTime(); // 记录开始的时刻 用来计算相对时间
+			long desiredEnd = startWhen + DURATION_SEC * 1000000000L;//只录8秒
 			SurfaceTexture st = mStManager.getSurfaceTexture();
 			int frameCount = 0;
 
@@ -411,6 +423,7 @@ public class CamRecbyOpenGL extends Activity {
 				mStManager.awaitNewImage(); // mSurfaceTexture.updateTexImage();
 				mStManager.drawImage(); // mTextureRender.drawFrame(mSurfaceTexture);
 
+				// 提取这个texture image的时间戳(在最近一次调用updateTexImage时候设置) 绝对时间
 				// 根据SurfaceTexture来设置 the presentation time stamp 
 				// MediaMuxer用他来设置mp4中的PTS  
 				Log.d(TAG, "present: " + ((st.getTimestamp() - startWhen) / 1000000.0) + "ms");
@@ -465,7 +478,10 @@ public class CamRecbyOpenGL extends Activity {
 		Camera.Parameters parms = mCamera.getParameters();
 
 		choosePreviewSize(parms, encWidth, encHeight);
-		// leave the frame rate set to default
+		
+		// set framerate to 15fps but record 30fps
+		parms.setPreviewFrameRate(15);
+		
 		mCamera.setParameters(parms);
 
 		Camera.Size size = parms.getPreviewSize();
@@ -638,6 +654,15 @@ public class CamRecbyOpenGL extends Activity {
 		}
 
 		/**
+		 * Sends the presentation time stamp to EGL. Time is expressed in
+		 * nanoseconds.
+		 */
+		public void setPresentationTime(long nsecs) {
+			EGLExt.eglPresentationTimeANDROID(mEGLDisplay, mEGLSurface, nsecs);
+			checkEglError("eglPresentationTimeANDROID");
+		}
+		
+		/**
 		 * Calls eglSwapBuffers. Use this to "publish" the current frame.
 		 */
 		public boolean swapBuffers() {
@@ -649,14 +674,7 @@ public class CamRecbyOpenGL extends Activity {
 			return result;
 		}
 
-		/**
-		 * Sends the presentation time stamp to EGL. Time is expressed in
-		 * nanoseconds.
-		 */
-		public void setPresentationTime(long nsecs) {
-			EGLExt.eglPresentationTimeANDROID(mEGLDisplay, mEGLSurface, nsecs);
-			checkEglError("eglPresentationTimeANDROID");
-		}
+
 
 		/**
 		 * Checks for EGL errors. Throws an exception if one is found.
@@ -907,13 +925,9 @@ public class CamRecbyOpenGL extends Activity {
 			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
 			checkGlError("glDrawArrays");
 
-			// IMPORTANT: on some devices, if you are sharing the external
-			// texture between two
-			// contexts, one context may not see updates to the texture unless
-			// you un-bind and
-			// re-bind it. If you're not using shared EGL contexts, you don't
-			// need to bind
-			// texture 0 here.
+			// IMPORTANT: 在有些设备 如果你共享外部纹理(external texture)在两个Context中
+			// 其中一个context可能看不到texture的更新 除非 un-bind和re-bind它
+			// 如果你不共享EGLContext, 你不需要在这里bind绑定texture 0 
 			GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, 0);
 		}
 

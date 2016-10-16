@@ -6,7 +6,7 @@
     android:paddingLeft="@dimen/activity_horizontal_margin"
     android:paddingRight="@dimen/activity_horizontal_margin"
     android:paddingTop="@dimen/activity_vertical_margin"
-    tools:context="com.tom.codecanativewin.MainActivity" >
+    tools:context="com.tom.entry.MainActivity" >
 
     <Button
         android:id="@+id/bNativeWinCodec"
@@ -23,7 +23,7 @@
         android:layout_height="wrap_content"
         android:layout_alignLeft="@+id/bNativeWinCodec"
         android:layout_below="@+id/bNativeWinCodec"
-        android:text="Camera预览保存" 
+        android:text="CamOpenGL预览保存" 
 		android:onClick="funcOnClick"/>
 
     <Button
@@ -86,5 +86,14 @@
 	    android:layout_marginTop="14dp"
 	    android:text="RtspOverAndroid"
 	    android:onClick="funcOnClick" />
+
+	<Button
+	    android:id="@+id/bCam2OpenGL"
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:layout_above="@+id/bDeEnCodec"
+	    android:layout_alignRight="@+id/bByteBuffer"
+	    android:text="Cam2OpenGL"
+	    android:onClick="funcOnClick"  />
 
 </RelativeLayout>
