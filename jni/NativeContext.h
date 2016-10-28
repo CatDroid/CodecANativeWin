@@ -50,6 +50,9 @@ public:
 	pthread_t mDeocdeTh  ;
 	bool mforceClose = false;
 	AMediaCodec* mDecoder  ;
+	int mExtractCount ;
+	int mIFrameCount ;
+	int mPFrameCount ;
 
 	// Decode-Out-Thread Related
 	pthread_t mDeocdeOutTh  ;
