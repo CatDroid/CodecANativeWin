@@ -24,9 +24,14 @@
 #include "NativeBuffer.h"
 
 #define JAVA_CLASS_PATH "com/tom/codecanativewin/jni/DecodeH264"
-#define TEST_H264_FILE "/mnt/sdcard/client.h264"
+//#define TEST_H264_FILE "/mnt/sdcard/client.h264"
 #define	H264_FILE  			3
 #define DECODEOUT_THREAD 	1
+#define TEST_DROP_P_FRAME	0	// 测试丢掉部分P帧
+#define TEST_DROP_I_FRAME	0	//
+#define TEST_DROP_FIRST_I_FRAME	0 // 测试丢掉第一个IDR帧
+#define TEST_DISCARD_FIRST_I_FRAME 0 // 测试截断第一个IDR帧
+#define TEST_DISCARD_P_FRAME 1 // 测试截断某些P帧
 
 struct cnw_java_fields_t {
     jfieldID    context; 	// NOT IN USED
@@ -108,6 +113,11 @@ static void* decodeh264_thread(void* argv)
 
 	prctl(PR_SET_NAME,"decodeh264_th") ;
 
+
+	ctx->mExtractCount = 0 ;
+	ctx->mPFrameCount = 0;
+	ctx->mIFrameCount = 0 ;
+
 	do{
 		int file_size = 0 ;
 		int sample_count = 0 ;
@@ -115,9 +125,10 @@ static void* decodeh264_thread(void* argv)
 				ALOGE("open fail %d %s " , ctx->mFd , strerror(errno) );
 				break;
 		}
+
 		file_size = lseek(ctx->mFd, 0, SEEK_END);
 		int cur = lseek(ctx->mFd, 0, SEEK_SET);
-		ALOGD("file_size %d byte file_position %d " , file_size , cur );
+		ALOGI("file_size %d byte file_position %d " , file_size , cur );
 
 		unsigned char * filemap = (unsigned char*)mmap(NULL , file_size  ,  PROT_READ , MAP_SHARED  , ctx->mFd,  0);
 		unsigned char * pCur = filemap ;
@@ -149,16 +160,26 @@ static void* decodeh264_thread(void* argv)
 			            		break;
 			            	}
 			            }
-			            sampleSize = p - pCur ;
+			            sampleSize = p - pCur ; // 包含当前 00 00 00 01
+			            //  00 	00	00	01		........		00	00	00  01
+			            //  ˇ									ˇ
+			            //  pCur 								p
 			            if( bufsize < sampleSize){
 			            	ALOGE("MediaCodec Buffer Size is too Small break!");
 			            	break;
 			            }
+
 			            memcpy( buf , pCur, sampleSize );
+
+			            int nal_type = buf[4] & 0x1F ;
+			            int nal = buf[4] ;
+
 		    			struct timeval cur_time;
 			    		gettimeofday(&cur_time, NULL);
 			    		uint64_t presentationTimeUs = cur_time.tv_sec * 1000UL * 1000UL + cur_time.tv_usec ;
 
+
+			    		// 把H264裸流上抛到应用层
 			    		int triSize = sampleSize ;
 
 				        ABuffer * pbuffer = ctx->m_pABufferManager->obtainBuffer();
@@ -178,18 +199,73 @@ static void* decodeh264_thread(void* argv)
 				        	ALOGE("BufferManager->obtainBuffer abort");
 				        }
 
+				        ctx->mExtractCount++ ;
 			            pCur = p ;
-				        AMediaCodec_queueInputBuffer(ctx->mDecoder,
-				        								bufidx,
-				        								0,
-				        								sampleSize,
-				        								presentationTimeUs,
-				        								sawInputEOS ? AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM : 0);
+
+			            bool drop_this_frame = false;
+
+			            if( nal_type == 1 ) {
+			            	ctx->mPFrameCount ++ ;
+#if TEST_DROP_P_FRAME
+			           		if( ctx->mPFrameCount % 20 == 0    ){
+			           			ALOGI("drop P frame %d " , ctx->mPFrameCount );
+			           			drop_this_frame = true ;
+			           		}
+#endif
+
+#if TEST_DISCARD_P_FRAME
+			           		int discard_interval = ctx->mPFrameCount % 20 ;
+			           		if( discard_interval > 5 && discard_interval < 15  ){
+			           			ALOGI("sampleSize %d discard to %d " , sampleSize , sampleSize * 3 / 4 );
+			           			sampleSize = sampleSize * 3 / 4 ;
+			           		}
+#endif
+
+			            }else if( nal_type == 5 ) {
+			            	ctx->mIFrameCount ++ ;
+			            	ALOGI("mIFrameCount = %d %x" ,ctx->mIFrameCount , nal);
+#if TEST_DROP_I_FRAME
+			            	int interval =  ctx->mIFrameCount % 5 ;
+			           		if( interval == 0  ){
+			           			ALOGI("drop I frame %d " , ctx->mIFrameCount );
+			           			drop_this_frame = true ;
+			           		}
+#endif
+
+#if TEST_DROP_FIRST_I_FRAME
+			           		if( ctx->mIFrameCount == 1){
+			           			drop_this_frame = true ;
+			           		}
+#endif
+
+#if TEST_DISCARD_FIRST_I_FRAME
+			           		if( ctx->mIFrameCount == 1){
+			           			ALOGI("sampleSize %d discard to %d " , sampleSize , sampleSize * 3 / 4 );
+			           			sampleSize = sampleSize * 3 / 4 ;
+			           		}
+#endif
+			            }
 
 
+			            if(drop_this_frame && !sawInputEOS){
+			            	ALOGI("drop_this_frame ");
+			            	AMediaCodec_queueInputBuffer(ctx->mDecoder,
+																bufidx,
+																0,
+																0,
+																0,
+																sawInputEOS ? AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM : 0);
+			            }else{
+							AMediaCodec_queueInputBuffer(ctx->mDecoder,
+															bufidx,
+															0,
+															sampleSize,
+															presentationTimeUs,
+															sawInputEOS ? AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM : 0);
+			            }
 
 #if 1
-				        //usleep(30000);
+				        usleep(30 * 1000);
 #else
 				       	if( sample_count % 100 == 0 ){
 				       		int sleepRand = rand()%10 ;
@@ -505,6 +581,17 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
     	ALOGE("GetEnv Err");
     	return JNI_ERR;
     }
+
+    // 64bit arm64-v8a
+	struct timeval tb_test ;
+	gettimeofday(&tb_test, NULL);
+	ALOGI("current = %llu " , tb_test.tv_sec * 1000uL +  tb_test.tv_usec / 1000uL );
+
+	// armeabi-v7a on 64bit
+	struct timeval tb_test_armeabi ;
+	gettimeofday(&tb_test_armeabi, NULL);
+	ALOGI("current = %llu " , tb_test_armeabi.tv_sec * 1000uLL +  tb_test_armeabi.tv_usec / 1000uLL );
+
 
 	jclass clazz;
     clazz = env->FindClass(JAVA_CLASS_PATH );
