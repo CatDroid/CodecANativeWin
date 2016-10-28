@@ -89,6 +89,9 @@ public class DecodeH264 {
     	case MEDIA_H264_SAMPLE:
     		if( mp.mOnDataListener !=null){
     			mp.mOnDataListener.onData(MEDIA_H264_SAMPLE,(ABuffer)obj);
+    		}else{
+    			ABuffer buffer = (ABuffer)obj ; 
+    			buffer.release();
     		}
     		break;
     	default:
