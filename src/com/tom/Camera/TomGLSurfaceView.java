@@ -8,6 +8,7 @@ import android.opengl.EGL14;
 import android.opengl.GLSurfaceView;
 import android.os.Handler;
 import android.os.Message;
+import android.graphics.PixelFormat;
 import android.graphics.SurfaceTexture ;
 import android.util.AttributeSet;
 import android.util.Log;
@@ -29,6 +30,13 @@ public class TomGLSurfaceView extends GLSurfaceView
 		super(context);
 		Log.d(TAG, "TomGLSurfaceView (Context) context = " + context);
 		Log.d(TAG, "TomGLSurfaceView App context = " + context.getApplicationContext());
+		
+		//	默认 GLSurfaceView 创建 PixelFormat.RGB_888 format的界面 
+		//	如果需要半透明的界面   getHolder().setFormat(PixelFormat.TRANSLUCENT);
+		//	a TRANSLUCENT surface是设备依赖的
+		//	但他一定是32-bit-per-pixel 的 带有 8 bits每个颜色成分
+		
+		//getHolder().setFormat(PixelFormat.TRANSLUCENT);
 		
 		// android.opengl.GLSurfaceView.// 在setRenderer(Renderer)调用之前
 		setEGLContextClientVersion(2);  // 告知 默认的 EGLContextFactory 和 默认的 EGLConfigChooser
