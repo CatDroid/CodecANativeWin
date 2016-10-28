@@ -30,7 +30,7 @@ public class NativeWinCodecActivity extends Activity {
 	private SurfaceView mSv = null;
 	private SurfaceHolder mSh = null;
 	private NativeWinCodec mNativeWinCodec = null;
-	private final String PLAY_THIS_FILE =  "/mnt/sdcard/1080p60fps.mp4";// "/mnt/sdcard/mtv.mp4";//"/mnt/sdcard/test1080p60fps.mp4";
+	private final String PLAY_THIS_FILE =  "/mnt/sdcard/fuzhubao.3gp";// "/mnt/sdcard/mtv.mp4";//"/mnt/sdcard/test1080p60fps.mp4";
 
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
@@ -162,83 +162,12 @@ public class NativeWinCodecActivity extends Activity {
 				if (loop.equals(mime)) {
 
 					/*
-					 * h264 video/avc编码器 支持的颜色格式 MTK MTK6735 codec name:
-					 * 
-					 * OMX.MTK.VIDEO.ENCODER.AVC mime:video/avc support formats
-					 * = 2130706944 ??? mime:video/avc support formats =
-					 * 2130708361 COLOR_FormatSurface mime:video/avc support
-					 * formats = 2130706944 ??? mime:video/avc support formats =
-					 * 2135033992 COLOR_FormatYUV420Flexible mime:video/avc
-					 * support formats = 19 COLOR_FormatYUV420Planar
-					 * mime:video/avc support formats = 6
-					 * COLOR_Format16bitRGB565 mime:video/avc support formats =
-					 * 11 COLOR_Format24bitRGB888 mime:video/avc support formats
-					 * = 16 COLOR_Format32bitARGB8888 mime:video/avc support
-					 * formats = 2130707200 ??? mime:video/avc support formats =
-					 * 15 COLOR_Format32bitBGRA8888
-					 * 
-					 * 高通820/小米5 codec name: OMX.qcom.video.encoder.avc
-					 * 
-					 * range:1~100000000 frame:1~240 height:64~2160
-					 * width:96~4096 width_align:2 height_align:2 640, 480
-					 * support ? true 640, 480 15fps support ? true complex:0~0
-					 * mime:video/avc support formats = 2141391878 ???
-					 * mime:video/avc support formats = 2141391876 ???
-					 * mime:video/avc support formats = 2141391880 ???
-					 * mime:video/avc support formats = 2141391879 ???
-					 * mime:video/avc support formats = 2130708361
-					 * COLOR_FormatSurface mime:video/avc support formats =
-					 * 2135033992 COLOR_FormatYUV420Flexible mime:video/avc
-					 * support formats = 21 COLOR_FormatYUV420SemiPlanar
-					 * 
-					 * codec name: OMX.google.h264.encoder range:1~12000000
-					 * frame:0~960 height:16~1088 width:16~1920 width_align:2
-					 * height_align:2 640, 480 support ? true 640, 480 15fps
-					 * support ? true complex:0~0 mime:video/avc support formats
-					 * = 2135033992 COLOR_FormatYUV420Flexible mime:video/avc
-					 * support formats = 19 COLOR_FormatYUV420Planar
-					 * mime:video/avc support formats = 21
-					 * COLOR_FormatYUV420SemiPlanar mime:video/avc support
-					 * formats = 2130708361 COLOR_FormatSurface
-					 * 
-					 * LG Nexus 5X/MSM8992 codec name:
-					 * OMX.qcom.video.encoder.avc range:1~100000000 frame:0~960
-					 * height:64~2160 width:96~3840 width_align:2 height_align:2
-					 * 640, 480 support ? true 640, 480 15fps support ? true
-					 * complex:0~0 mime:video/avc support formats = 2141391876
-					 * mime:video/avc support formats = 2130708361
-					 * mime:video/avc support formats = 2135033992
-					 * mime:video/avc support formats = 21
-					 * 
-					 * 
-					 * OPPO R9/mt6755 codec name: OMX.MTK.VIDEO.ENCODER.AVC
-					 * range:1~62500000 frame:0~960 height:96~1072
-					 * width:128~1920 width_align:16 height_align:16 640, 480
-					 * support ? true 640, 480 15fps support ? true complex:0~0
-					 * mime:video/avc support formats = 2130706944
-					 * mime:video/avc support formats = 2130708361
-					 * COLOR_FormatSurface mime:video/avc support formats =
-					 * 2130706944 mime:video/avc support formats = 2135033992
-					 * COLOR_FormatYUV420Flexible mime:video/avc support formats
-					 * = 19 COLOR_FormatYUV420Planar mime:video/avc support
-					 * formats = 6 COLOR_Format16bitRGB565 mime:video/avc
-					 * support formats = 11 COLOR_Format24bitRGB888
-					 * mime:video/avc support formats = 16
-					 * COLOR_Format32bitARGB8888 mime:video/avc support formats
-					 * = 2130707200 mime:video/avc support formats = 15
-					 * COLOR_Format32bitBGRA8888
-					 * 
-					 * 
-					 * 
 					 * 高通820小米5 配置文件: media_codecs.xml 会包含下面的谷歌软库
 					 * 		media_codecs_google_audio.xml 谷歌的audio编解码库
 					 * 		media_codecs_google_video.xml 谷歌的video编解码库
 					 * 		media_codecs_google_telephony.xml 针对"audio/gsm"类型
 					 * 
 					 * 		media_codecs_performance.xml
-					 * 
-					 * 
-					 * 
 					 * 
 					 */
 					Log.d(TAG, "codec name: " + codecInfo.getName());
