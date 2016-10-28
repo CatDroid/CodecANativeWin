@@ -14,7 +14,10 @@
 #define LOG_TAG "jni_nwc"
 #include "vortex.h"
 #define NWC_CLASS_PATH "com/tom/codecanativewin/jni/NativeWinCodec"
-#define SAVE_EXTRACT_H264_TO_FILE 1  //  mp4容器提取的视频 NAL 保存到文件中/mnt/sdcard/nativeCodec.h264
+#define SAVE_EXTRACT_H264_TO_FILE 0  //  mp4容器提取的视频 NAL 保存到文件中/mnt/sdcard/nativeCodec.h264
+#if SAVE_EXTRACT_H264_TO_FILE == 1
+#define EXTRACT_DST_FILE_NAME "/mnt/sdcard/PLConfig.h264"
+#endif
 #define SEARCH_OTHER_NAL_IN_SAMPLE 1 //  通过Extractor取出的一个sample中 可能包含多个NAL
 
 #include <list>
@@ -232,7 +235,7 @@ static void* playback_thread(void* argv)
 				}else{
 					ALOGE("pps is null");
 				}
-				ALOGD("%s", pBuffer);
+				ALOGI("%s", pBuffer);
 				free(pBuffer);
 				/*
 					00 00 00 01 << NAL起始码  在H264 NAL中有00 00 00 01起始码   但是在ACC就不会有,直接"0x11,0x90"
@@ -282,15 +285,17 @@ static void* playback_thread(void* argv)
 
 #if SAVE_EXTRACT_H264_TO_FILE
 	int fd = -1 ;
-	fd = open("/mnt/sdcard/temp.h264",O_CREAT | O_WRONLY | O_TRUNC );
+	fd = open( EXTRACT_DST_FILE_NAME ,O_CREAT | O_WRONLY | O_TRUNC );
 	if( fd < 0 ) {
-		ALOGD("native Codec H264 file open error %d , %s  " , fd , strerror(errno));
+		ALOGE("native Codec H264 file open error %d , %s  " , fd , strerror(errno));
 	}
 #endif
 
 	// 循环
 	bool sawInputEOS = false, sawOutputEOS = false ;
 	int64_t start_vender_time = -1;
+	int gop_size = 0 ;
+	int64_t last_time = 0 ;
 	while( (!sawInputEOS || !sawOutputEOS) && !nwc->forceClose ){
 		ssize_t bufidx = -1;
 	    if (!sawInputEOS) {
@@ -300,7 +305,7 @@ static void* playback_thread(void* argv)
 	        if (bufidx >= 0) {
 	            size_t bufsize;// buffer的大小
 	            uint8_t *buf = AMediaCodec_getInputBuffer(codec, bufidx, &bufsize);
-	            ssize_t sampleSize = AMediaExtractor_readSampleData(extract, buf, bufsize);
+	            ssize_t sampleSize = AMediaExtractor_readSampleData(extract, buf, bufsize);// NAL
 	            // ALOGD("Codec Buffer = %d Extractor = %d " , bufsize ,sampleSize );
 	            uint8_t nal_type = buf[4] & 0x1F ;
 	            uint8_t nal_type_buf = buf[4] ;
@@ -316,8 +321,9 @@ static void* playback_thread(void* argv)
 	             * */
 
 #if SEARCH_OTHER_NAL_IN_SAMPLE
-	            	// SEI  readSampleData如果返回0x6很有可能包含
-
+	            	// 第一个SEI  readSampleData 如果返回0x6很有可能包含  第一个IDR帧
+	            	// SEI中增强信息  可以在迅雷播放器的 视频 编码库 和  编码参数设置 中查看  SEI中大部分都是可阅读的字符串
+	            	// 在Android实现中一个sample中  一定包含一个时间戳  SPS PPS SEI都没有时间戳 所以sample =   P帧+PPS帧
 
 	            	uint8_t* p = buf + 4 ; // 跳过开始的00 00 00 01 查找这个sample中的其他NAL
 	            	uint8_t* pEnd = buf + sampleSize  ;
@@ -331,14 +337,13 @@ static void* playback_thread(void* argv)
 							}
 						}
 						if(!sample_end){
-							ALOGD("Found One NAL_type = 0x%02x in Sample 0x%02x " , *(p+4) , nal_type_buf );
+							ALOGI("Found One NAL_type = 0x%02x in Sample 0x%02x " , *(p+4) , nal_type_buf );
 							p += 4 ;
 						}
 					}while(p + 3 < pEnd );
-
-
-
 #endif
+
+
 
 #if SAVE_EXTRACT_H264_TO_FILE
 	            if( fd >=0  ){
@@ -353,6 +358,18 @@ static void* playback_thread(void* argv)
 
 
 	            int64_t presentationTimeUs = AMediaExtractor_getSampleTime(extract);
+
+	            //ALOGI("nal_type %d presentationTimeUs %ld " ,nal_type , presentationTimeUs );
+				if( nal_type == 5 ){
+					ALOGI("gop_size = %d interval = %d fps %d current %ld" , gop_size
+							, (presentationTimeUs - last_time)/1000 ,
+							gop_size * 1000 * 1000 / (presentationTimeUs - last_time) ,
+							presentationTimeUs );
+					last_time = presentationTimeUs ;
+					gop_size = 0 ;
+				}else{
+					gop_size++ ;
+				}
 
 		        AMediaCodec_queueInputBuffer(codec,
 			        bufidx,
@@ -379,7 +396,7 @@ static void* playback_thread(void* argv)
 	            //ALOGD("INFO offset             =%d " , info.offset );
 
 	            if (info.flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM) {
-	            	ALOGD("decode output EOS");
+	            	ALOGI("decode output EOS");
 	                sawOutputEOS = true;
 	            }
 
@@ -389,7 +406,7 @@ static void* playback_thread(void* argv)
 	    			struct timeval cur_time;
 	    			gettimeofday(&cur_time, NULL);
 	    			uint64_t nowms = cur_time.tv_sec * 1000UL + cur_time.tv_usec / 1000UL;
-	    			ALOGD("fps = %lu " , frameCount * 1000 / (nowms - startTimeMs) );
+	    			ALOGI("fps = %lu " , frameCount * 1000 / (nowms - startTimeMs) );
 	    		}
 
 	            // 控制播放的速度
