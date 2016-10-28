@@ -10,6 +10,7 @@
 #include <media/NdkMediaFormat.h>
 #include <media/NdkMediaExtractor.h>
 #include <android/native_window_jni.h> // ANativeWindow
+#include <arpa/inet.h>
 
 
 #define LOG_TAG "jni_codecaudio"
@@ -99,12 +100,15 @@ inline int64_t systemustime()
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
-#define USING_WINDOW 1
+#define USING_WINDOW 0
 #define USING_CUSTOM_FORMAT 1
+#define USING_ESDS_CONFIG 1 	// only valiable while USING_CUSTOM_FORMAT = 1
 #define DECODEOUT_THREAD 1
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/0.3gp"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/fuzhubao.3gp"
-#define TEST_ACC_DECODE_FILE "/mnt/sdcard/1080p60fps.mp4"
+//#define TEST_ACC_DECODE_FILE "/mnt/sdcard/1080p60fps.mp4"
+//#define TEST_ACC_DECODE_FILE "/mnt/sdcard/1080p30fps.mp4"
+#define TEST_ACC_DECODE_FILE "/mnt/sdcard/m960.3gp"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/test.aac"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/test.mp3"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/test2.aac"
@@ -132,6 +136,23 @@ inline int64_t systemustime()
 	            					AudioTrack.MODE_STATIC = 0;
 	            					AudioTrack.MODE_STREAM = 1;
 	             	 	 	 	 */
+
+// refer  ffmpeg mpeg4audio.h
+enum AudioObjectType {
+    AOT_NULL,					// Support?                Name
+    AOT_AAC_MAIN,              ///< Y                       Main
+    AOT_AAC_LC,                ///< Y                       Low Complexity
+    AOT_AAC_SSR,               ///< N (code in SoC repo)    Scalable Sample Rate
+    AOT_AAC_LTP,               ///< Y                       Long Term Prediction
+    AOT_SBR,                   ///< Y                       Spectral Band Replication
+    AOT_AAC_SCALABLE,          ///< N                       Scalable
+};
+// refer ffmpeg mpeg4audio.c
+const int avpriv_mpeg4audio_sample_rates[16] = {
+    96000, 88200, 64000, 48000, 44100, 32000,
+    24000, 22050, 16000, 12000, 11025, 8000, 7350
+};
+
 
 // 创建线程
 #if DECODEOUT_THREAD
@@ -497,30 +518,54 @@ static void* extractAAC_thread(void* argv)
 			media_status_t res;
 #if USING_CUSTOM_FORMAT
 			AMediaFormat_delete(format);
-			AMediaFormat *format  = AMediaFormat_new();
+			format  = AMediaFormat_new();
+			const int const_channel = 2 ;
+			const int const_sample_rate = 44100 ;
+			const int const_bit_witdh = 16 ;
 			if(format == NULL){
 				ALOGE("AMediaFormat_new fail\n");
 				ALOGE("AMediaFormat_new fail\n");
 				ALOGE("AMediaFormat_new fail\n");
 				return NULL;
+			}else{
+				ALOGD("USING_CUSTOM_FORMAT");
 			}
 
 			AMediaFormat_setString(format, AMEDIAFORMAT_KEY_MIME, "audio/mp4a-latm");
-			AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_CHANNEL_COUNT, 2); // 双通道
-			AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_AAC_PROFILE, 2); // ACC-LC
-			AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_SAMPLE_RATE, 44100 ); // 采样率
-			AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_INPUT_SIZE, max_input_size );
+			AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_CHANNEL_COUNT, const_channel); // 双通道
+			AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_SAMPLE_RATE, const_sample_rate ); // 采样率
+			//AMediaFormat_setInt32(format, "bit-width", const_bit_witdh);
+			//AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_AAC_PROFILE, 2); // ACC-LC only for encoder
+			//AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_INPUT_SIZE, max_input_size );
 
-			//unsigned char esds[] = {
-			//		0x12,0x10
-			//};
-			//AMediaFormat_setBuffer(format , "csd-0" , esds , sizeof(esds) );
+#if USING_ESDS_CONFIG == 1
+//			unsigned char esds[] = {
+//					0x12,0x10
+//			};
+			int sampling_index = 0 ;
+			for( ; sampling_index < sizeof(avpriv_mpeg4audio_sample_rates) ; sampling_index++ ){
+				if( avpriv_mpeg4audio_sample_rates[sampling_index] == const_sample_rate  ){
+					break;
+				}
+			}
+			if( sampling_index == sizeof(avpriv_mpeg4audio_sample_rates) ){
+				sampling_index = 	4 ; //default
+				ALOGE("sample rate does NOT support , use default now");
+			}
 
-			if( bit_witdh == 0 ) bit_witdh = 16 ;
-			AMediaFormat_setInt32(format, "bit-width = ", bit_witdh);
+			uint16_t esds = (0xFFFF & (AOT_AAC_LC << 11)) |
+							(0xFFFF & (sampling_index << 7)) |
+							(0xFFFF & (const_channel << 3) )  ;
 
+			esds = htons(esds);
+			ALOGD("esds 0x%x " , esds);
+
+			AMediaFormat_setBuffer(format , "csd-0" , &esds , sizeof(esds) );
 #endif
 
+
+#endif
+			ALOGD("configure to: %s", AMediaFormat_toString(format));
 #if USING_WINDOW
 			res = AMediaCodec_configure(nwc->decorder, format, nwc->pSurfaceWindow, NULL, 0);
 #else
@@ -590,8 +635,9 @@ static void* extractAAC_thread(void* argv)
 	}
 #endif
 
-
+// esds必须配置 !!!
 #if USING_CUSTOM_FORMAT
+#if USING_ESDS_CONFIG == 0
 	{
 		ssize_t esds_index = AMediaCodec_dequeueInputBuffer(nwc->decorder, -1);
 		size_t  esds_size = 0 ;
@@ -607,6 +653,7 @@ static void* extractAAC_thread(void* argv)
 			0,
 			AMEDIACODEC_CONFIGURE_FLAG_ENCODE /* 在小米上 也可以是  0 */);
 	}
+#endif
 #endif
 
 	while(
