@@ -13,6 +13,7 @@ import com.tom.codecanativewin.AudioDecActivity;
 import com.tom.codecanativewin.ByteBufferActivity;
 import com.tom.codecanativewin.De2FileAndEn2FileActivity;
 import com.tom.codecanativewin.DisplayH264Activity;
+import com.tom.codecanativewin.FormatActivity;
 import com.tom.codecanativewin.MediaPlayerActivity;
 import com.tom.codecanativewin.NativeWinCodecActivity;
 import com.tom.codecanativewin.R;
@@ -126,6 +127,10 @@ public class MainActivity extends Activity {
 			this.startActivity(start);
 			this.finish();			
 			break;
+		case R.id.bColorFormat:
+			start = new Intent(MainActivity.this, FormatActivity.class);
+			this.startActivity(start);
+			this.finish();			
 		default:
 			Log.d(TAG, "unknown Btn");
 			break;

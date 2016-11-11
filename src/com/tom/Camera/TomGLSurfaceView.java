@@ -1,5 +1,7 @@
 package com.tom.Camera;
 
+import java.io.IOException;
+
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
 
@@ -25,6 +27,7 @@ public class TomGLSurfaceView extends GLSurfaceView
 	private SurfaceTexture mSurface;  
     private DirectDrawer mDirectDrawer;  
     private Handler mCallback;
+    
     
 	public TomGLSurfaceView(Context context) {
 		super(context);
@@ -110,7 +113,7 @@ public class TomGLSurfaceView extends GLSurfaceView
 	// From android.graphics.SurfaceTexture.OnFrameAvailableListener
 	@Override
 	public void onFrameAvailable(SurfaceTexture arg0) {
-		Log.d(TAG,"onFrameAvailable");
+		Log.d(TAG,"onFrameAvailable Thread id = " + Thread.currentThread().getId() + " name = " + Thread.currentThread().getName() );
 		requestRender();  // android.opengl.GLSurfaceView.requestRender
 	}
 
@@ -119,9 +122,42 @@ public class TomGLSurfaceView extends GLSurfaceView
 	public void onDrawFrame(GL10 gl) {
 		Log.d(TAG,"GLSurfaceView.Renderer.onDrawFrame");
 		
+	     /**
+         * SurfaceTexture
+         * 从一个 照片流(an image stream)捕捉帧(frames)  作为 一个OpenGL ES纹理 (OpenGL ES texture.)
+         * 这个照片流 可以来自 摄像头预览 或者 解码器输出 
+         * 一个从SurfaceTexture创建的Surface可以作为camera2和MediaCodec MediaPlayer Allocation的输出目标 (ANativeWindow)
+         * 
+         * 当 updateTexImage被调用  指定的texture(SurfaceTexture已经创建)内容被更新到最近的一个照片
+         * 这可能导致流中的某些帧被丢掉
+         * 
+         * 使用旧的Camera API指定目标时候  SurfaceTexture可以取代SurfaceHolder
+         * 这样做 会使照片流的所有帧 发送到 SurfaceTexture而不是设备的显示 
+         * 
+         * 当要从texture采样，必须先改变纹理坐标系(texture coordinates) 使用从getTransformMatrix(float[])查询到的矩阵(4x4 matrix)
+         * 这个变换矩阵可每次调用  updateTexImage()后改变 ， 所以每次  updateTexImage()之后必须重新查询
+         * 
+         * 这个矩阵改变 传统2D OpenGL ES纹理坐标  列向量  格式为(s, t, 0, 1) (其中s和t是闭合区间[0 1]之间的值，对应在已在流的纹理(streamed texture)采样位置(proper sampling location))
+         * 这个变换补偿   照片流源 的 任何特性   导致它显示不同与传统的 2D OpenGL ES纹理
+         * 比如  从左下角开始采样的图片 可以通过查询矩阵得到的列向量(0,0,0,1)变换来完成
+         * 同样，从上右角开始采样的图片 可以通过(1,1,0,1)变换完成
+         * 
+         * 纹理对象(texture object ) 使用  GL_TEXTURE_EXTERNAL_OES 纹理目标(texture target) (定义在OpenGL ES扩展 GL_OES_EGL_image_external )
+         * 这个限制纹理的使用. 每一次绑定纹理 它必须绑定到 GL_TEXTURE_EXTERNAL_OES 目标 而不是  GL_TEXTURE_2D 目标 
+         * 另外 任何从纹理(texture)采样的OpenGL ES2.0的shader必须声明它使用的扩展 
+         * 比如 通过一条指令 "#extension GL_OES_EGL_image_external : require"
+         * 这样的sharders 必须 通过 samplerExternalOES GLSL sampler type 来访问纹理
+         * 
+         * SurfaceTexture可以在任何线程创建
+         * 但是updateTexImage一般只能在 包含纹理对象的GL上下文( OpenGL ES context) 所在线程上调用
+         * 
+         * 由于'帧到来'(frame-available callback )的回调在任何线程上，
+         * 所以除非采取特别的措施,updateTexImage不应该在'帧到来'的回调上直接调用
+         */
         mSurface.updateTexImage();  
+   
         float[] mtx = new float[16];  
-        mSurface.getTransformMatrix(mtx);  
+        mSurface.getTransformMatrix(mtx);  // 每次都查询 纹理坐标系矩阵 4x4
         mDirectDrawer.draw(mtx);  
 	}
 
@@ -140,19 +176,12 @@ public class TomGLSurfaceView extends GLSurfaceView
 
 	@Override
 	public void onSurfaceCreated(GL10 gl, EGLConfig config) {
-		Log.d(TAG,"GLSurfaceView.Renderer.onSurfaceCreated");
-		//Log.d(TAG,"Called when the surface is created or recreated. ");
-		//Log.d(TAG,"Called when the rendering thread starts and whenever the EGL context is lost.");
-		//Log.d(TAG,"The EGL context will typically be lost when the Android device awakes after going to sleep. ");
-		//Log.d(TAG,"this method is a convenient place to put code to create resources that need to be created when the rendering starts,");
-		//Log.d(TAG,"and that need to be recreated when the EGL context is lost. ");
-		//Log.d(TAG,"Textures are an example of a resource that you might want to create here. ");
-		//Log.d(TAG," when the EGL context is lost, all OpenGL resources associated with that context will be automatically deleted.");
-		
+		Log.d(TAG,"GLSurfaceView.Renderer.onSurfaceCreated thread id = " + Thread.currentThread().getId() + " name = " + Thread.currentThread().getName());
+	 
 		// Create Texture Here 必须在 onSurfaceCreated 不能在构造函数
 		
 		// // 如果进来这里的话 必须重新  new DirectDrawer 和 SurfaceTexture 否则错误:
-		/*
+		/**
 		 * 不重新SurfaceTexture:
 		 * E/GLConsumer(25902): checkAndUpdateEglState: invalid current EGLContext
 		 * java.lang.IllegalStateException: Unable to update texture contents (see logcat for details)

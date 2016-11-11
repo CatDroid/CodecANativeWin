@@ -47,6 +47,7 @@ public class DisplayH264Activity extends Activity {
 		mSh1.setKeepScreenOn(true);
 		mSh1.addCallback(new SurfaceCallback());
 		
+		//new DecodeH264();
 		
 		((Button) findViewById(R.id.bStart)).setOnClickListener(new View.OnClickListener() {
 			@Override

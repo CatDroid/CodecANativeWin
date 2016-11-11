@@ -18,8 +18,8 @@ APP_ABI := arm64-v8a armeabi-v7a armeabi
 # 
 # 不用每个so库在Android.mk都加这个了,可能是cpp std更换了 不再是简化的system std
 # LOCAL_STATIC_LIBRARIES := stlport_static
-APP_STL := stlport_shared
-#APP_STL := stlport_static 
+#APP_STL := stlport_shared
+APP_STL := stlport_static 
 #APP_STL := gnustl_shared
 
 # system - 使用默认最小的C++运行库，这样生成的应用体积小，内存占用小，但部分功能将无法支持

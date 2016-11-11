@@ -96,4 +96,15 @@
 	    android:text="Cam2OpenGL"
 	    android:onClick="funcOnClick"  />
 
+	<Button
+	    android:id="@+id/bColorFormat"
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:layout_alignBaseline="@+id/bRtsp"
+	    android:layout_alignBottom="@+id/bRtsp"
+	    android:layout_marginLeft="14dp"
+	    android:layout_toRightOf="@+id/bRtsp"
+	    android:text="颜色空间"
+	    android:onClick="funcOnClick" />
+
 </RelativeLayout>

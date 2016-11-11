@@ -16,6 +16,7 @@
 #define LOG_TAG "jni_codecaudio"
 #include "vortex.h"
 #define JAVA_CLASS_PATH "com/tom/codecanativewin/jni/NativeAudioCodec"
+//#define AUDIO_TRACK_COST_TIME
 
 class JNIContext
 {
@@ -45,8 +46,6 @@ static struct  {
     jfieldID    context; 	// native object pointer
     jmethodID   post_event; // post event to Java Layer/Callback Function
 } g_java_fields;
-
-
 
 
 static void AttachDetachThread2JVM( JavaVM* vm ,
@@ -88,12 +87,27 @@ inline int64_t systemnanotime()
 	timespec cur_time;
     clock_gettime(CLOCK_MONOTONIC, &cur_time);
     return cur_time.tv_sec * 1000000000LL + cur_time.tv_nsec;
+
+	/**
+	 * CLOCK_REALTIME:系统实时时间,随系统实时时间改变而改变,即从UTC1970-1-1 0:0:0开始计时 中间时刻如果系统时间被用户改成其他 则对应的时间相应改变
+	 * CLOCK_MONOTONIC:从系统启动这一刻起开始计时,不受系统时间被用户改变的影响
+	 * CLOCK_PROCESS_CPUTIME_ID:本进程到当前代码系统CPU花费的时间
+	 * CLOCK_THREAD_CPUTIME_ID:本线程到当前代码系统CPU花费的时间
+	 */
+}
+
+inline int64_t systemmstime()
+{
+	timespec cur_time;
+    clock_gettime(CLOCK_MONOTONIC, &cur_time);
+    return cur_time.tv_sec * 1000LL + cur_time.tv_nsec / 1000000LL;
+
 }
 
 inline int64_t systemustime()
 {
 	struct timeval cur_time;
-	gettimeofday(&cur_time, NULL);
+	gettimeofday(&cur_time, NULL); // 系统实时时间 从1970.1.1
 	return cur_time.tv_sec * 1000000LL + cur_time.tv_usec ;
 }
 
@@ -108,7 +122,8 @@ inline int64_t systemustime()
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/fuzhubao.3gp"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/1080p60fps.mp4"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/1080p30fps.mp4"
-#define TEST_ACC_DECODE_FILE "/mnt/sdcard/m960.3gp"
+//#define TEST_ACC_DECODE_FILE "/mnt/sdcard/m960.3gp"
+#define TEST_ACC_DECODE_FILE "/mnt/sdcard/wushun.3gp"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/test.aac"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/test.mp3"
 //#define TEST_ACC_DECODE_FILE "/mnt/sdcard/test2.aac"
@@ -184,6 +199,8 @@ static void* decodeACCOutput_thread(void* argv)
 	// 	public int write(byte[] audioData, int offsetInBytes, int sizeInBytes)
 	jmethodID audiotrack_write = current_thread_jenv->GetMethodID(audiotrack_cls,"write","([BII)I");
 
+	jmethodID audiotrack_stop = current_thread_jenv->GetMethodID(audiotrack_cls, "stop", "()V");
+	jmethodID audiotrack_release = current_thread_jenv->GetMethodID(audiotrack_cls,"release","()V");
 
 	buffer_size = current_thread_jenv->CallStaticIntMethod( audiotrack_cls, min_buff_size_id,
 					nwc->mSampleRate,
@@ -223,10 +240,18 @@ static void* decodeACCOutput_thread(void* argv)
 	bool sawOutputEOS = false ;
 	uint64_t outputCount = 0 ;
 	uint32_t channel_count = (nwc->mChannelMask== AudioFormat_CHANNEL_OUT_MONO)? 1 : 2 ;
+	uint32_t bitwidth = (nwc->mBitWidth == AudioFormat_ENCODING_PCM_16BIT) ? 2 : 1 ;
+
 	while( !sawOutputEOS && !nwc->forceClose ){
 		if (!sawOutputEOS) {
 			AMediaCodecBufferInfo info;
-			ssize_t status = AMediaCodec_dequeueOutputBuffer(decoder, &info, 10000); //10ms  timeoutUs
+
+//			if(outputCount % 20 == 0 ){
+//				usleep(1000*1000);
+//				ALOGD("force sleep");
+//			}
+
+			ssize_t status = AMediaCodec_dequeueOutputBuffer(decoder, &info, 1000000); //10ms  timeoutUs
 			if (status >= 0) {
 					if (info.flags & AMEDIACODEC_BUFFER_FLAG_END_OF_STREAM) {
 						ALOGD("decode output EOS");
@@ -250,11 +275,26 @@ static void* decodeACCOutput_thread(void* argv)
 
 					outputCount ++ ;
 
+
 					// (info.size)  PCM数据/通道数/bit-width = PCM样本数目        PCM样本数目/ 44100 = 播放时间
-					// [PCM] data size = 4096 , sample count = 4096/2/2 = 1024 个样本      1024*1000/44100 ~= 23ms
-					//
-					ALOGD("[PCM] data size = %d , sample count = %d " , info.size , info.size/channel_count );
-					//ALOGD("decodeACCOutput_thread outputCount = %d " , outputCount );
+					// 44100 双通道  16bit ==> [PCM] data size = 4096 , sample count = 4096/2/2 = 1024 个样本      1024*1000/44100 ~= 23ms
+					// 44100 单通道  16bit ==> [PCM] data size = 2048 , sample count = 1024 playtime = 23.21995
+
+
+					ALOGW("size is %d " , info.size);
+
+
+//					int sample_count = info.size/channel_count/bitwidth ;
+//					ALOGD("[PCM] data size = %d , sample count = %d playtime = %f ms " ,
+//											info.size ,
+//											sample_count ,
+//											sample_count * 1000.0f / nwc->mSampleRate  );
+
+
+#ifdef AUDIO_TRACK_COST_TIME
+					struct timeval tb_pre ;
+					gettimeofday(&tb_pre, NULL);
+#endif
 
 					current_thread_jenv->SetByteArrayRegion(byteArray, 0, info.size, (jbyte *)outbuffer);
 					if(current_thread_jenv->ExceptionCheck()) {
@@ -270,6 +310,13 @@ static void* decodeACCOutput_thread(void* argv)
 						current_thread_jenv->ExceptionClear();
 						goto ExceptionExit ;
 					}
+
+
+#ifdef AUDIO_TRACK_COST_TIME
+					struct timeval tb_post ;
+					gettimeofday(&tb_post, NULL);
+					ALOGI("audio write cost = %llu us ", (tb_post.tv_sec - tb_pre.tv_sec) * 1000uL * 1000uL +   (tb_post.tv_usec - tb_pre.tv_usec) );
+#endif
 
 					AMediaCodec_releaseOutputBuffer(decoder, status, info.size != 0); // render = true 如果configure时候配置了surface 就render到surface上
 			} else if (status == AMEDIACODEC_INFO_OUTPUT_BUFFERS_CHANGED) {
@@ -287,8 +334,11 @@ static void* decodeACCOutput_thread(void* argv)
 		}
 	}
 
-ExceptionExit:
+	current_thread_jenv->CallVoidMethod(audio_track, audiotrack_stop);
+	current_thread_jenv->CallVoidMethod(audio_track, audiotrack_release);
 
+ExceptionExit:
+	current_thread_jenv->DeleteLocalRef( audio_track );
 	current_thread_jenv->DeleteLocalRef( byteArray );
 
 	AttachDetachThread2JVM(nwc->jvm , false, &current_thread_jenv );
@@ -393,6 +443,7 @@ static void* extractAAC_thread(void* argv)
 			AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_DURATION, &duration);
 			AMediaFormat_getInt32(format, AMEDIAFORMAT_KEY_MAX_INPUT_SIZE, &max_input_size);
 			AMediaFormat_getInt32(format, "bit-width", &bit_witdh);
+
 
 
 
@@ -519,7 +570,7 @@ static void* extractAAC_thread(void* argv)
 #if USING_CUSTOM_FORMAT
 			AMediaFormat_delete(format);
 			format  = AMediaFormat_new();
-			const int const_channel = 2 ;
+			const int const_channel = 1 ;
 			const int const_sample_rate = 44100 ;
 			const int const_bit_witdh = 16 ;
 			if(format == NULL){
@@ -614,7 +665,6 @@ static void* extractAAC_thread(void* argv)
 
 	if( sample_rate > 0 ){
 		nwc->mSampleRate = sample_rate ;
-		nwc->mSampleRate = 44100 ;
 	}else{
 		ALOGE("unsupported sample rate %d " , sample_rate);
 		nwc->mSampleRate = -1 ;
@@ -680,7 +730,8 @@ static void* extractAAC_thread(void* argv)
 		            ssize_t sampleSize = AMediaExtractor_readSampleData(audio_extract, buf, bufsize);
 		            int64_t presentationTimeUs = AMediaExtractor_getSampleTime(audio_extract);
 
-		            ALOGD("%02x %02x %02x %02x" , buf[0], buf[1] ,buf[2] ,buf[3] );
+
+		            // ALOGD("[AAC] %02x %02x %02x %02x %d " , buf[0], buf[1] ,buf[2] ,buf[3] , sampleSize );
 		            /*
 		             * 没有任何ADTS/LATM header的raw aac data
 		             * e.g:
@@ -847,6 +898,7 @@ static void* extractAAC_thread(void* argv)
 
 	            	if (render_startup_time_us < 0)
 					{
+	            		ALOGD("clock_gettime = %lld gettimeofday = %lld\n" , systemmstime() , systemustime()/1000  );
 	            		render_startup_time_us = systemustime() - presentationTimeUs;
 	            	}
 	            	int64_t delay_us = (render_startup_time_us + presentationTimeUs) - systemustime();

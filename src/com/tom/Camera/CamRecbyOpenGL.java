@@ -5,13 +5,17 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.HashMap;
 
+import com.tom.Camera.OldCameraActivity.MyHandler;
 import com.tom.codecanativewin.R;
 import com.tom.codecanativewin.R.layout;
 
 import android.app.Activity;
 import android.os.Bundle;
 import android.os.Environment;
+import android.os.Handler;
+import android.os.Message;
 import android.util.Log;
 import android.view.Surface;
 import android.view.SurfaceView;
@@ -76,19 +80,63 @@ public class CamRecbyOpenGL extends Activity {
 	// allocate one of these up front so we don't need to do it every time
 	private MediaCodec.BufferInfo mBufferInfo;
 
+	private EGLContext mSharedEGLContext = null;
+	private EGLSurface mSharedEGLSurfaceRd = null;
+	private EGLSurface mSharedEGLSurfaceWr = null;
+	private EGLDisplay mSharedEGLDisplay= null;
+	
+	private Handler mGLViewHandler = new GLViewHandler();
+	
+	public class GLViewHandler extends Handler
+	{
+
+		@Override
+		public void handleMessage(Message msg) {
+			
+			switch(msg.what){
+			case MessageType.MSG_RENDER_CREATED:
+				Log.d(TAG, "Render.surfaceCreated !");
+				if( msg.obj != null ){
+					HashMap<Integer,Object> map = (HashMap<Integer,Object>)msg.obj;
+					mSharedEGLContext = (EGLContext) map.get(0);
+					mSharedEGLSurfaceRd = (EGLSurface) map.get(1);
+					mSharedEGLSurfaceWr = (EGLSurface) map.get(2);
+					mSharedEGLDisplay = (EGLDisplay) map.get(3);
+					Log.d(TAG, "shared " + "eglcontext = " + mSharedEGLContext 
+							+ " eglsurfaceRd = " + mSharedEGLSurfaceRd 
+							+ " eglsurfaceWr = " + mSharedEGLSurfaceWr 
+							+ " egldisplay = " + mSharedEGLDisplay );
+				}
+				
+				// 可以不在同一个线程中 创建EGLDislpay和EGLContext
+				// 但是makeCurrent要在使用OpenGL的线程中, 使线程成为渲染线程 , 这样后面才能使用OpenGL API
+				// prepareEncoder(ENC_WIDTH, ENC_HEIGHT, ENC_BITRATE); 
+				
+				CameraToMpegWrapper wrapper = new CameraToMpegWrapper();
+				Thread th = new Thread(wrapper, "codec test");
+				th.start();
+				
+				break;
+			case MessageType.MSG_RENDER_CHANGE:
+				Log.d(TAG, "Render.surfaceChanged !");
+				break;
+			default:
+				break;
+			}
+			super.handleMessage(msg);
+		}
+		
+	}
+	   
+	   
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_camera);
 		
-		// 可以不在同一个线程中 创建EGLDislpay和EGLContext
-		// 但是makeCurrent要在使用OpenGL的线程中 这样才能在对应的线程获得纹理ID
-		// prepareEncoder(ENC_WIDTH, ENC_HEIGHT, ENC_BITRATE); 
-		
-		CameraToMpegWrapper wrapper = new CameraToMpegWrapper();
-		Thread th = new Thread(wrapper, "codec test");
-		th.start();
-		//th.join();
+		CamGLSurfaceView gs = (CamGLSurfaceView)findViewById(R.id.CamSurfaceView);
+		gs.setCallback(mGLViewHandler);
+
 	}
 	
 	
@@ -169,9 +217,9 @@ public class CamRecbyOpenGL extends Activity {
 			throw new RuntimeException("setPreviewTexture failed", ioe);
 		}
 		// Surface 由以下两个得到
-		//   SurfaceView.getHolder().getSurface()		<---- SurfaceView 
+		//   SurfaceView.getHolder().getSurface()		<---- SurfaceView		可以跟EGLSurface关联  用于绘图
 		//
-		//	 new Surface(SurfaceTexture)				<---- SurfaceTexture 
+		//	 new Surface(SurfaceTexture)				<---- SurfaceTexture	可以用于Camera MediaPlayer MediaCodec的输出,然后做纹理处理
 		//		data
 		//			-->ANativeWindow-->
 		//			-->Surface
@@ -414,26 +462,43 @@ public class CamRecbyOpenGL extends Activity {
 				}
 				frameCount++;
 
-				
-				// 请求a new frame作为输入,render他到Surface
-				// 如果有 GLSurfaceView 作为显示， 我们可以 切换 EGL contexts 和 之后 调用 drawImage() 
-				// 使其 render it 在屏幕上
-				// texture是可以被EGL contexts共享 通过在 eglCreateContext() 传递参数 share_context
-			
+				/**
+				 *  已经有新的帧到来 使用SurfaceTexture.updateTexImage将其加载到 SurfaceTexture
+				 *  然后调用drawFrame将其render(使用gl操作 到这个纹理上 surfaceTexture)
+				 *  
+				 *  如果有 GLSurfaceView 作为显示， 我们可以 切换 EGL contexts 和 之后 调用 drawImage() 
+				 *  使其 render it 在屏幕上
+				 *  texture是可以被EGL contexts共享 通过在 eglCreateContext() 传递参数 share_context
+				 */
 				mStManager.awaitNewImage(); // mSurfaceTexture.updateTexImage();
-				mStManager.drawImage(); // mTextureRender.drawFrame(mSurfaceTexture);
+				mStManager.drawImage(); 	// mTextureRender.drawFrame(mSurfaceTexture);
 
-				// 提取这个texture image的时间戳(在最近一次调用updateTexImage时候设置) 绝对时间
-				// 根据SurfaceTexture来设置 the presentation time stamp 
-				// MediaMuxer用他来设置mp4中的PTS  
+				/**
+				 * SurfaceTexture.getTimestamp()
+				 * 提取这个texture image的时间戳(在最近一次调用updateTexImage时被设置) 绝对时间
+				 */
 				Log.d(TAG, "present: " + ((st.getTimestamp() - startWhen) / 1000000.0) + "ms");
 				mInputSurface.setPresentationTime(st.getTimestamp());
 
-				// 提交给编码器. 如果输入缓存满的话  swapBuffers会阻塞,直到我们从输出中获取数据
-				// 由于我们在一个线程中推送数据和获取数据，为了避免在这里堵塞
-				// 我们在drainEncoder(false)的时候，把所有输出output都获取写到文件
-				// 然后再 awaitNewImage --> drawImage --> swapBuffers	 
+				/**
+				 *  提交给编码器. 如果输入缓存满的话  swapBuffers会阻塞,直到我们从输出中获取数据
+				 *  由于我们在一个线程中推送数据和获取数据,
+				 *  为了避免在这里堵塞,我们在drainEncoder(false)的时候,把所有输出output都获取写到文件
+				 *  然后再 awaitNewImage --> drawImage --> swapBuffers	
+				 */
 				mInputSurface.swapBuffers();// 这样编码器就有输入数据了
+				
+				
+				if(mSharedEGLContext != null){
+					EGL14.eglMakeCurrent(mSharedEGLDisplay, mSharedEGLSurfaceRd, mSharedEGLSurfaceWr, mSharedEGLContext);
+					mStManager.drawImage(); 
+					EGL14.eglSwapBuffers(mSharedEGLDisplay, mSharedEGLSurfaceWr);
+					
+					mInputSurface.makeCurrent(); 
+				}else{
+					
+				}
+				
 			}
 
 			// send end-of-stream to encoder, and drain remaining output
@@ -499,7 +564,7 @@ public class CamRecbyOpenGL extends Activity {
 	 * This object owns the Surface -- releasing this will release the Surface
 	 * too.
 	 */
-	private static class CodecInputSurface {
+	private class CodecInputSurface {
 		private static final int EGL_RECORDABLE_ANDROID = 0x3142;
 
 		private EGLDisplay mEGLDisplay = EGL14.EGL_NO_DISPLAY;
@@ -571,24 +636,48 @@ public class CamRecbyOpenGL extends Activity {
 			checkEglError("eglCreateContext RGB888+recordable ES2");
 
 			
-            /* Configure context for OpenGL ES 2.0.
-             * 根据EGLConfig,创建 上下文 EGLContext   OpenGL ES 2.0 
+            /**
+             * Configure context for OpenGL ES 2.0.
+             * 根据EGLConfig,创建 EGL显示上下文 (EGL rendering context)
              * 
-             * EGLContext  eglCreateContext(EGLDisplay display, 
+             * EGLContext eglCreateContext(EGLDisplay display, 
              * 									EGLConfig config, 
              * 									EGLContext share_context 是否有context共享？共享的contxt之间亦共享所有数据 EGL_NO_CONTEXT代表不共享
              * 									int[] attrib_list);
              * 
              * 目前可用属性只有EGL_CONTEXT_CLIENT_VERSION, 1代表OpenGL ES 1.x, 2代表2.0
+             * 
+             * 如果share_context不是EGL_NO_CONTEXT 那么context中所有可以分享的数据 
+             * 任意数量的正在显示(rendering)的contexts可以共享数据
+             * 但是共享数据的所有context 必须在一个地址空间
+             * 如果在一个进程中，两个正在显示(rendering)的contexts是共享地址空间 
+             * 
+             * OpenGL ES 渲染命令假定为异步的 如果调用了任何绘制运算 不保证在调用返回时渲染已经完成
+             * 多线程环境中经常需要同步 CPU-GPU 或 GPU-GPU 操作 ,  OpenGL ES 借助 glFinish() 和 glFlush() 命令提供显式同步机制
+             * 使用时应当慎重，否则会损害性能。一些其他函数以隐式方式强制同步
+             * 
+             * 两个线程共享纹理对象
+             * 使用多线程最好的使用方式是一个线程用于纹理加载，另外一个线程用于绘图，不建议两个线程同时进行绘图操作
              */
 			int[] attrib_list = { 
 						EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, 
 						EGL14.EGL_NONE };
-			mEGLContext = EGL14.eglCreateContext(mEGLDisplay, 
-													configs[0], 
-													EGL14.EGL_NO_CONTEXT, 
-													attrib_list,
-													0);
+			if( mSharedEGLContext != null){
+				Log.d(TAG, "create shared context ");
+				mEGLContext = EGL14.eglCreateContext(mEGLDisplay, 
+						configs[0], 
+						mSharedEGLContext , 
+						attrib_list,
+						0);
+			}else{
+				Log.d(TAG, "do NOT create shared context ");
+				mEGLContext = EGL14.eglCreateContext(mEGLDisplay, 
+						configs[0], 
+						EGL14.EGL_NO_CONTEXT, 
+						attrib_list,
+						0);
+			}
+			
 			checkEglError("eglCreateContext");
 
             /* Create a window surface, and attach it to the Surface we received.
@@ -636,39 +725,79 @@ public class CamRecbyOpenGL extends Activity {
 			mSurface = null;
 		}
 
-		/**
-		 * Makes our EGL context and surface current.
-		 */
+	 
 		public void makeCurrent() {
-			// OpenGL ES定义了客户端和服务端状态,所以OpenGL ES的contex包含了客户和服务端两个状态
-        	// 设置为当前的渲染环境 OpengGL的客户端API采用了隐含的context作为粉刷入口,而不是在绘图函数传入Context参数
-			// 因此EGL提供一个函数makeCurrent使某个Context变成当前使用状态
-			// 1. 每个线程最多可以为每个支持/使用客户端API(openGL)创建一个当前粉刷Cotext
-			// 2. 同一时刻 一个Context只能被一个线程设置为当前
-        	// boolean android.opengl.EGL14.eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx)
+			/**
+			 * 使一个线程成为渲染线程
+			 * 
+			 * boolean android.opengl.EGL14.eglMakeCurrent(EGLDisplay dpy, EGLSurface draw, EGLSurface read, EGLContext ctx)
+			 * 
+			 * display : EGL显示连接 (EGL display connection)
+			 * draw:	 EGL写surface
+			 * read:	 EGL读surface
+			 * context:  Surface将要附在的EGL上下文(EGL rendering context)  
+			 * 
+			 * 绑定一个 EGLcontext 到  当前的线程 (current rendering thread) 和 draw/read Surface
+			 * 如果一个线程已经有一个EGLContext作为current context, 这个EGLContext将会flushed 而且被标记为不是current
+			 * 第一次EGLContext被标记为current(作为某个线程的current context),viewport and scissor dimensions 被设置为draw surface的大小
+			 * 后面EGLContext再被设置为current viewport and scissor将不会改变
+			 *  
+			 * 如果要释放当前线程的context 这样调用 eglMakeCurrent( dpy, EGL_NO_SURFACE , EGL_NO_SURFACE , EGL_NO_CONTEXT ) 
+			 * 通过eglGetCurrentContext, eglGetCurrentDisplay, and eglGetCurrentSurface获取 当前线程的context和 display surface 
+			 * 
+			 * 
+			 * OpenGL ES定义了客户端和服务端状态,所以OpenGL ES的contex包含了客户和服务端两个状态
+			 * 设置为当前的渲染环境 OpengGL的客户端, API采用了隐含的context作为粉刷入口,而不是在绘图函数传入Context参数
+			 * 因此EGL提供一个函数makeCurrent使某个Context变成当前使用状态
+			 * 1. 每个线程只能有一个渲染上下文处于活动状态 
+			 * 2. 一个给定上下文只能对一个线程处于活动状态
+			 * 
+			 */
 			EGL14.eglMakeCurrent(mEGLDisplay, mEGLSurface, mEGLSurface, mEGLContext);
 			checkEglError("eglMakeCurrent");
-            // 环境初始化完毕，开始使用OpenGL ES 2.0 API 进行绘制
-            // GLES20.glxxxxxx ...
-            // 
+			
+			/**
+			 * EGLBoolean eglBindAPI( EGLenum api);
+			 * 为调用这个的线程所在EGL设置当前渲染API
+			 * 这个api是 EGL实现支持的其中一个 客户端渲染API 
+			 * 影响其他EGL命令的行为 包含 eglCreateContext eglGetCurrentXXXX eglMakeCurrent eglWaitClient eglWaitNative
+			 * 
+			 * EGL version >= 1.2 才支持 EGL_OPENGL_ES_API  EGL_OPENVG_API  
+			 * EGL version >= 1.4才支持 EGL_OPENGL_API 
+			 * 
+			 * 可选值:
+			 * If api is EGL_OPENGL_API, 当前渲染API是 OpenGL API.
+			 * If api is EGL_OPENGL_ES_API, 当前渲染API是  OpenGL ES API.
+			 * If api is EGL_OPENVG_API, 当前渲染API是  OpenVG API.
+			 * 
+			 * 默认值:
+			 * EGL_OPENGL_ES_API 
+			 * */
 		}
 
-		/**
-		 * Sends the presentation time stamp to EGL. Time is expressed in
-		 * nanoseconds.
-		 */
+
 		public void setPresentationTime(long nsecs) {
+			/**
+			 * boolean eglPresentationTimeANDROID (EGLDisplay dpy, EGLSurface sur, long time)   
+			 * 更新一个时间戳给到EGL. 单位是 nanoseconds
+			 * 如果EGLSurafce对应的是MediaCodec编码器createInputSurfaced的Surface
+			 * 那么这个将会是pts
+			 */
 			EGLExt.eglPresentationTimeANDROID(mEGLDisplay, mEGLSurface, nsecs);
 			checkEglError("eglPresentationTimeANDROID");
 		}
 		
-		/**
-		 * Calls eglSwapBuffers. Use this to "publish" the current frame.
-		 */
+	 
 		public boolean swapBuffers() {
-			//	调用eglSwapBuffers会去触发queuebuffer，dequeuebuffer，
-		    //	queuebuffer将画好的buffer交给surfaceflinger处理，
-		    //	dequeuebuffer新创建一个buffer用来画图
+			/**
+			 * 	boolean eglSwapBuffers (EGLDisplay dpy,  EGLSurface surface)
+			 * 	调用eglSwapBuffers会去触发queuebuffer，dequeuebuffer
+			 *	queuebuffer将画好的buffer交给surfaceflinger处理
+			 *	(如果Surface是来自SurfaceView;但如果surface来自 MediaCodec.codecInputSurface的话 就去到MediaCodec)
+			 *	
+			 *	dequeuebuffer新创建一个buffer用来画图
+			 *  
+			 */
 			boolean result = EGL14.eglSwapBuffers(mEGLDisplay, mEGLSurface);
 			checkEglError("eglSwapBuffers");
 			return result;
@@ -871,7 +1000,12 @@ public class CamRecbyOpenGL extends Activity {
 		public void drawFrame(SurfaceTexture st) {
 			checkGlError("onDrawFrame start");
 			
-			// 拿到SurfaceTexture的坐标系
+			/**
+			 * void	getTransformMatrix(float[] mtx)
+			 * 获取对应纹理照片(texture image)的  4x4纹理坐标变换矩阵 
+			 * 由最近一次调用 updateTexImage 来更新 
+			 */
+			 
 			st.getTransformMatrix(mSTMatrix);
 
 			// (optional) clear to green so we can see if we're failing to set
@@ -950,15 +1084,130 @@ public class CamRecbyOpenGL extends Activity {
 			muSTMatrixHandle = GLES20.glGetUniformLocation(mProgram, "uSTMatrix");
 			checkLocation(muSTMatrixHandle, "uSTMatrix");
 
-			// GenTextures  产生一个GLES20纹理 
+			/**
+			 * khronos 
+			 * void glGenTextures (int n, int[] textures, int offset)
+			 * 返回n个纹理名字
+			 * 保存在textures中
+			 * 不保证n个纹理名字是连续的整数集合 
+			 * 保证n个纹理名字都没有在使用
+			 * 
+			 * 产生的纹理textures都没有维度
+			 * 纹理 假定是  他们第一 绑定的纹理目标 (texture target) 的 维度
+			 * 
+			 * 返回的纹理名字 不会再被后续的glGenTextures返回 , 除非调用了glDeleteTextures
+			 */
 			int[] textures = new int[1];
 			GLES20.glGenTextures(1, textures, 0);
 			mTextureID = textures[0];
 			
-			// BindTexture 绑定指定纹理
+			/**
+			 * 绑定一个已命名的纹理(纹理名字) 到一个 正在纹理 的目标 (texturing target)
+			 * void glBindTexture(GLenum target, GLuint texture);
+			 * 
+			 * target:	纹理将要绑定的当前激活纹理单元的目标  可选值为  GL_TEXTURE_2D   GL_TEXTURE_CUBE_MAP
+			 * texture: 一个纹理的名字
+			 * 
+			 * 创建或者使用一个已命名纹理 
+			 * 把   纹理名字  绑定  当前激活的纹理单元的目标  
+			 * 当一个纹理绑定到一个目标 这个目标之前的绑定会自动断开
+			 * 
+			 * 纹理名字是无符号整数 
+			 * 0被保留代表 所有纹理目标的默认纹理 
+			 * 纹理名字 和 对应纹理内容 是本地的   在当前的 GL rendering context的共享对象空间 
+			 * 
+			 * 当纹理第一次绑定，会假定这样的目标(target)
+			 * 如果绑定到GL_TEXTURE_2D, 就变成 一个两维的纹理 (two-dimensional)
+			 * 如果绑定到GL_TEXTURE_CUBE_MAP, 就变成 一个 立方体映射的纹理  (a cube-mapped texture)
+			 * 
+			 * 第一次绑定后 二维纹理的状态 立刻等于   默认GL_TEXTURE_2D在GL initialization阶段的状态   , 立体映射纹理也相识
+			 * 
+			 * 一个纹理绑定之后 在已绑定目标(target)上的GL操作(GL operations)影响绑定的纹理 
+			 * 查询已绑定的目标 会返回 绑定纹理(bound texture) 的状态  
+			 * 实际上 纹理目标 (texture targets) 变成了  当前绑定纹理 的 化身(别名)
+			 * 
+			 * 纹理名字0 代表 纹理目标 在初始 绑定的默认纹理
+			 * 
+			 * 由glBindTexture创建的纹理绑定 一直有效 
+			 * 直到 
+			 * 		下一个不同的纹理(different texture)绑定到同样目标 (the same target)
+			 * 		已绑定的纹理调用  glDeleteTextures.
+			 * 
+			 * 一旦创建,一个命名纹理,可以在需要时 被重新绑定到 初始目标 (same original target)
+			 * 通常,使用glBindTexture 来绑定  一个已命名的纹理(an existing named texture)到 一个纹理目标
+			 * 		比 使用 glTexImage2D 重新加载 纹理图片  texture image 
+			 * 
+			 * GLES20.glGetError() 
+			 * 返回  
+			 * GL_INVALID_ENUM 		如果目标不是允许值
+			 * GL_INVALID_OPERATION	纹理已经被创建 到一个目标 ,而且又不是现在传入的目标
+			 * */
 			GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, mTextureID);
 			checkGlError("glBindTexture mTextureID");
 
+			/**
+			 * http://docs.gl/es2/glTexParameter
+			 * 
+			 * glTexParameter 设置纹理参数 
+			 * void glTexParameterf(	GLenum target, GLenum pname, GLfloat param);
+			 * void glTexParameteri(	GLenum target, GLenum pname, GLint param);
+			 * 
+			 * target: 	活跃纹理单元的目标  取值   GL_TEXTURE_2D or GL_TEXTURE_CUBE_MAP
+			 * pname:	单值的纹理参数名字 可选   GL_TEXTURE_MIN_FILTER, GL_TEXTURE_MAG_FILTER, GL_TEXTURE_WRAP_S, or GL_TEXTURE_WRAP_T.
+			 * param:	pname的值
+			 * 
+			 * 纹理映射 是将一个图片(image)像玻璃纸 或者贴花纸那样 敷在一个 物体的表面 
+			 * 图片(image)被创建 在一个(s,t)坐标系统的 纹理空间 
+			 * 一个纹理 是 一个 两位或者立方体映射的照片 和 一系列参数(决定如何从图像中导出样本)
+			 * 
+			 * 
+			 * GL_TEXTURE_MIN_FILTER
+			 * 纹理缩小函数  当像素即将被纹理  映射到一个区域 大于 一个纹理元素(one texture element)
+			 * 已定义六种缩小函数
+			 * 其中两种使用 nearest : 最接近的一个或四个纹理元素 来计算一个纹理值(texture value)
+			 * 其余四中使用mipmaps
+			 * 
+			 * 一个mipmap是一个有序数组 代表一个同样图片 在 逐渐降低的分辨率 
+			 * 如果textrue是w x h的维数 那么有floor(log2(max(w,h)))+1 个mipmap级别
+			 * 第一个mipmap级别是初始纹理(w x h)
+			 * 子mipmap级别是 max(1,floor(w/2^i))×max(1,floor(h/2^i)) i是mipmap的级别 
+			 * 最后的mipmap级别是  1×1 
+			 * 
+			 * 要定义mipmap的级别  可以在调用  glTexImage2D, glCompressedTexImage2D, or glCopyTexImage2D
+			 * 来传递 level 参数  指示 mipmap的介数 
+			 * 级别0  是初始纹理 
+			 * 级别 floor(log2(max(w,h)))是最后一个级别 1 x 1
+			 * 
+			 * 		GL_NEAREST	返回 最接近被纹理像素中央(曼哈顿距离) 的 纹理元素 的值
+			 * 		GL_LINEAR	返回 最接近被纹理像素中央(曼哈顿距离) 的4个 纹理元素  的 权重均值 
+			 * 		GL_NEAREST_MIPMAP_NEAREST
+			 * 		GL_LINEAR_MIPMAP_NEAREST
+			 * 		GL_NEAREST_MIPMAP_LINEAR
+			 * 		GL_LINEAR_MIPMAP_LINEAR
+			 * 
+			 * 因为很多纹理元素 通过缩小程序采样, 少量的变形(fewer aliasing artifacts)很显然
+			 * 然而 GL_NEAREST and GL_LINEAR 缩小程序  比其他4种要快 他们只采样4个纹理元素(texture elements) 
+			 * 来决定  即将被render的像素 的纹理值 ，而且能够产生 波纹图形和 凹凸不平的过渡
+			 * 
+			 * 默认 GL_TEXTURE_MIN_FILTER是 GL_NEAREST_MIPMAP_LINEAR.
+			 * 
+			 * GL_TEXTURE_MAG_FILTER
+			 *		either GL_NEAREST or GL_LINEAR
+			 * 如果一个即将被纹理的像素pixel  映射到 少于或这等于一个纹理元素(texture element)的一个区域 
+			 * GL_NEAREST处理的更快  但是产生边角的纹理图片
+			 *
+			 * 默认GL_TEXTURE_MAG_FILTER是 GL_LINEAR.
+			 * 
+			 * GL_TEXTURE_WRAP_S
+			 * 	可选值: GL_CLAMP_TO_EDGE, GL_MIRRORED_REPEAT, or GL_REPEAT
+			 *	默认值: GL_REPEAT
+			 *	设置纹理坐标s的包装参数(wrap parameter)是 可选值之一
+			 *  GL_CLAMP_TO_EDGE 导致 s限制在 [1/2N,1−1/2N]  N是纹理的大小在限制的方向
+			 * 
+			 * GL_TEXTURE_WRAP_T
+			 * 	可选值: GL_CLAMP_TO_EDGE, GL_MIRRORED_REPEAT, or GL_REPEAT
+			 * 	默认值: GL_REPEAT
+			 */
 			GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_NEAREST);
 			GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
 			GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S,
