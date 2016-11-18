@@ -16,7 +16,7 @@
 #define LOG_TAG "jni_codecaudio"
 #include "vortex.h"
 #define JAVA_CLASS_PATH "com/tom/codecanativewin/jni/NativeAudioCodec"
-//#define AUDIO_TRACK_COST_TIME
+#define AUDIO_TRACK_COST_TIME
 
 class JNIContext
 {
@@ -218,7 +218,7 @@ static void* decodeACCOutput_thread(void* argv)
 	            nwc->mSampleRate,
 	            nwc->mChannelMask,
 	            nwc->mBitWidth,
-	            buffer_size,
+	            buffer_size ,
 	            AudioTrack_MODE_STREAM
 	);
 
@@ -281,7 +281,7 @@ static void* decodeACCOutput_thread(void* argv)
 					// 44100 单通道  16bit ==> [PCM] data size = 2048 , sample count = 1024 playtime = 23.21995
 
 
-					ALOGW("size is %d " , info.size);
+					// ALOGW("size is %d " , info.size);
 
 
 //					int sample_count = info.size/channel_count/bitwidth ;
@@ -904,7 +904,7 @@ static void* extractAAC_thread(void* argv)
 	            	int64_t delay_us = (render_startup_time_us + presentationTimeUs) - systemustime();
 	            	if (delay_us > 0 )
 					{
-	            		ALOGD("delay %ld" , delay_us);
+	            		//ALOGD("delay %ld" , delay_us);
 	            		usleep(delay_us);
 	           		}
 

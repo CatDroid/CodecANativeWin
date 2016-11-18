@@ -2,8 +2,12 @@ package com.tom.codecanativewin.jni;
 
 import java.nio.ByteBuffer;
 
+import android.util.Log;
+
 public class ABuffer {
 
+	private final String TAG = "ABuffer" ;
+	
 	private ABuffer(long self , int type , int time , int cap ,int act_size , ByteBuffer data)
 	{
 		mSelf = self;
@@ -24,10 +28,25 @@ public class ABuffer {
 	
 	public void release(){
 		native_release(mSelf);
+		mSelf = 0 ;
 	}
 	
 	private native void native_release(long self);
 	
+
+	@Override
+	protected void finalize() throws Throwable {
+		Log.d(TAG, "finalize = " + Long.toHexString(mSelf));
+		if( mSelf != 0 ){
+			native_release(mSelf);
+			mSelf = 0 ;
+		}
+		super.finalize();
+	}
+
+
+
+
 	static {
 		System.loadLibrary("Abuffer");
 	}

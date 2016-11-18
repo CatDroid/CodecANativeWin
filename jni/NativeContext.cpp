@@ -28,6 +28,7 @@ void* NativeContext::cbEventThread(void* argv)
 
 	ALOGD("cbEventThread loop enter");
 
+
 	while( ! pData->mEventLoopExit ){
 
 		JNINativeMsg* msg = NULL ;
@@ -58,7 +59,20 @@ void* NativeContext::cbEventThread(void* argv)
 
 					jobject byteBuffer = jenv->NewDirectByteBuffer( buf->mData ,  buf->mActualSize );
 				  	jobject readOnlyBuffer = jenv->CallObjectMethod(
-				  			byteBuffer, pData->jByteBuffer.asReadOnlyBuffer);
+				  								byteBuffer, pData->jByteBuffer.asReadOnlyBuffer);
+					/*
+					 * asReadOnlyBuffer:
+					 * ByteBuffer: [1479453319 9827][0 0 0 1][pos:0 lef:9827 cap:9827 lim:9827 dir:true]
+					 * ByteBuffer: [1479453319 11140][0 0 0 1][pos:0 lef:11140 cap:11140 lim:11140 dir:true]
+					 * ByteBuffer: [1479453318 5297][0 0 0 1][pos:0 lef:5297 cap:5297 lim:5297 dir:true]
+					 *
+					 * 不是 asReadOnlyBuffer
+					 * ByteBuffer: [1479453722 9431][0 0 0 1][pos:0 lef:9431 cap:9431 lim:9431 dir:true rd:false]
+					 * ByteBuffer: [1479453722 3399][0 0 0 1][pos:0 lef:3399 cap:3399 lim:3399 dir:true rd:false]
+					 * ByteBuffer: [1479453722 9677][0 0 0 1][pos:0 lef:9677 cap:9677 lim:9677 dir:true rd:false]
+					 * ByteBuffer: [1479453722 10880][0 0 0 1][pos:0 lef:10880 cap:10880 lim:10880 dir:true rd:false]
+					 *
+					 */
 				  	jenv->DeleteLocalRef(byteBuffer);
 
 				  	if (jenv->ExceptionCheck() ) {
@@ -105,8 +119,36 @@ void* NativeContext::cbEventThread(void* argv)
 							MEDIA_H264_SAMPLE, msg->arg1, msg->arg2, jabuffer);
 
 
+					/*
+					 * adb logcat -s jni_decodeh264 java_decodeh264  ByteBuffer ABuffer abuffer jni_nc
+					 *
+					 * Note 1:
+					 * 如果这里没有释放的话 ， GC不会回收ABuffer 也就是ABuffer::finalize 不会被调用
+					 * JNI ERROR (app bug): local reference table overflow (max=512)
+					 *
+					 * Note 2:
+					 * 同时如果线程退出的话,这个所以这个线程中New出来的LocalRef都会释放掉的
+					 * 但是如果线程没有退出,New出来的LocalRef太多 (max=512) 就会导致local reference table overflow
+					 *
+					 * Note 3:
+					 *	NewObject 返回的是 LocalRef
+					 *	NewGlobalRef 返回的是 GlobalRef 指向不同的jobject
+					 *
+					 *  不能对 NewGlobalRef 返回的对象进行: DeleteLocalRef
+					 *	expected reference of kind local reference but found global reference: 0x4ce'
+					 *
+					 * Note 4:
+					 *	如果object本地有GlobalRef  也会导致ABuffer::finalize不会被调用
+					 *	结果,
+					 * 	JNI ERROR (app bug): global reference table overflow (max=51200)
+					 *
+					 */
+					//jenv->DeleteLocalRef(byteBuffer);
 					jenv->DeleteLocalRef(readOnlyBuffer);
 					jenv->DeleteLocalRef(jabuffer);
+
+					pData->abuffer_num ++ ;
+					ALOGD("abuffer_num = %llu " , pData->abuffer_num );
 
 				}
 					break;
@@ -215,7 +257,7 @@ void NativeContext::cbEventThExit( )
 
 NativeContext::NativeContext(JavaVM* jvm ):mJvm(jvm),
 			mpSurfaceWindow(NULL),mFd(-1),mDeocdeTh(-1),mforceClose(false),mDecoder(NULL),
-			mDeocdeOutTh(-1),mframeCount(0),mStartMs(0L),
+			mDeocdeOutTh(-1),mframeCount(0),mStartMs(0L),abuffer_num(0L),
 			m_pABufferManager(NULL),mJavaClass(NULL),mJavaThizWef(NULL),mEventLoopTh(-1),mEventLoopExit(false),mJavaMethodID(0)
 {
 

@@ -120,7 +120,7 @@ public class DisplayH264Activity extends Activity {
 					};
 					mH264de2.start(mSh1.getSurface() , path1080p60fps , 
 									sps1080p60fps  , pps1080p60fps );
-				} 
+				}
 			}
 		});
 		

@@ -31,7 +31,7 @@
 #define TEST_DROP_I_FRAME	0	//
 #define TEST_DROP_FIRST_I_FRAME	0 // 测试丢掉第一个IDR帧
 #define TEST_DISCARD_FIRST_I_FRAME 0 // 测试截断第一个IDR帧
-#define TEST_DISCARD_P_FRAME 1 // 测试截断某些P帧
+#define TEST_DISCARD_P_FRAME 0 // 测试截断某些P帧
 
 struct cnw_java_fields_t {
     jfieldID    context; 	// NOT IN USED

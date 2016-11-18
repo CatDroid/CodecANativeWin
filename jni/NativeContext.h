@@ -78,6 +78,8 @@ public:
 		jclass thizClass ;
 	}jABuffer;
 
+	uint64_t abuffer_num ;
+
 private:
 	// Event-loop related
 	jclass mJavaClass ;

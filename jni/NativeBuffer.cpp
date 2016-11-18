@@ -50,7 +50,7 @@ ABufferManager::ABufferManager(const int buffer_size, const int count):
 	ALOGI("dump total buffer address : ");
 	for (std::list<ABuffer*>::iterator i = this->mTotal.begin(); i != this->mTotal.end(); i++)
 	{
-		ALOGI("[ptr:%p cap:%d]" , (*i)->mData  , (*i)->mCaptical );
+		ALOGI("[abuffer:%p ptr:%p cap:%d]" , (*i) , (*i)->mData  , (*i)->mCaptical );
 	}
 }
 
@@ -60,13 +60,13 @@ ABufferManager::~ABufferManager()
 	ALOGI("~ABufferManage dump total buffer address : ");
 	for (std::list<ABuffer*>::iterator i = this->mTotal.begin(); i != this->mTotal.end(); i++)
 	{
-		ALOGI("[ptr:%p cap:%d]" , (*i)->mData  , (*i)->mCaptical );
+		ALOGI("[abuffer:%p ptr:%p cap:%d]" , (*i) ,(*i)->mData  , (*i)->mCaptical );
 	}
 
 	ALOGI("~ABufferManage dump avaible buffer address : ");
 	for (std::list<ABuffer*>::iterator i = this->mAvailable.begin(); i != this->mAvailable.end(); i++)
 	{
-		ALOGI("[ptr:%p cap:%d]" , (*i)->mData  , (*i)->mCaptical );
+		ALOGI("[abuffer:%p ptr:%p cap:%d]" , (*i) , (*i)->mData  , (*i)->mCaptical );
 	}
 
 	unsigned int collect = this->mTotal.size() ;
