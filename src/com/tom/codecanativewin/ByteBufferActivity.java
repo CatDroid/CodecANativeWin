@@ -3,12 +3,14 @@ package com.tom.codecanativewin;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
+import java.util.ArrayList;
 
 import com.tom.codecanativewin.jni.ABuffer;
 import com.tom.codecanativewin.jni.DecodeH264;
 
 import android.app.Activity;
 import android.os.Bundle;
+import android.os.Debug;
 import android.os.Handler;
 import android.util.Log;
 import android.view.SurfaceHolder;
@@ -28,6 +30,194 @@ public class ByteBufferActivity extends Activity {
 	private boolean surfaceCreated = false;
 	private Handler mUIHandler = new Handler();
 
+	/* 	
+	
+	在Android Dalvik JVM 上 ByteBuffer.allocateDirect出来的DirectByteBuffer
+	a. 可以 array()  
+	b. isDirect是ture 
+	c. 分配在Dalvik Heap 
+	d. 会导致OOM 
+	e. 没有引用的话,GC会回收 
+	
+	在Android JNI  NewDirectByteBuffer出来的ByteBuffer
+	a. 不能 array
+	b. 行为跟OpenJDK JVM一样
+	
+	在PC OpenJDK JVM运行  	ByteBuffer.allocateDirect
+	a. 就不能array 异常 UnsupportedOperationException 
+	
+	 
+	Android DirecteByteBuffer的继承关系 
+		java.lang.Object
+		   ↳	java.nio.Buffer
+		 	   ↳	java.nio.ByteBuffer
+		 	 	   ↳	java.nio.MappedByteBuffer	A direct byte buffer whose content is a memory-mapped region of a file.
+		 	 	   								Mapped byte buffers are created via the FileChannel.map method
+		 	 	   								A mapped byte buffer and the file mapping that it represents remain valid until the buffer itself is garbage-collected.
+		 	 	   		 ↳	java.nio.DirectByteBuffer
+	   		
+   		
+	ByteBuffer的allocate和 allocateDirect说明:
+	
+		#allocate(int) 
+			Allocate  a new byte array and create a buffer based on it; 				
+			创建byte[]数组  并用ByteArrayBuffer封装 (所以实际就是byte[]数组)
+	
+		#allocateDirect(int) 
+			Allocate a memory block and create a direct buffer based on it; 
+			创建memory block 并用DirectByteBuffer封装
+							
+	DirectByteBuffer的构造:
+		1.ByteBuffer.allocateDirect 构造函数是:
+			a.先创建 MemoryBlock
+				MemoryBlock.allocate(capacity + 7);
+				
+				public static MemoryBlock allocate(int byteCount) {
+	    			VMRuntime runtime = VMRuntime.getRuntime();
+	    			byte[] array = (byte[]) runtime.newNonMovableArray(byte.class, byteCount);
+	    			
+	    			// 注意这里分配得到的是  byte[] java Heap的！！！ 但是是用VMRuntime的 newNonMovableArray获取到的
+	    			// 如果是ByteBuffer.allocate() 的话 , 是直接new byte[capacity] 然后封装到java/nio/ByteArrayBuffer.java返回 
+	    			// 获得对应的地址 !!
+	    			
+	    			long address = runtime.addressOf(array); 
+	    			return new NonMovableHeapBlock(array, address, byteCount);
+	    			
+	    			// << 使用的是 NonMovableHeapBlock  
+				}
+			
+			b.使用DirectByteBuffer封装
+				--> new DirectByteBuffer(memoryBlock, capacity, (int)(alignedAddress - address), false, null);
+					--> protected DirectByteBuffer(MemoryBlock block, int capacity, int offset, boolean isReadOnly, MapMode mapMode)
+					
+		2. JNI NewDirectByteBuffer 构造函数是:
+					
+			// Used by the JNI NewDirectByteBuffer function.
+			DirectByteBuffer(long address, int capacity) {
+				this(MemoryBlock.wrapFromJni(address, capacity), capacity, 0, false, null);
+			}
+						
+						
+			public static MemoryBlock wrapFromJni(long address, long byteCount) {
+				return new UnmanagedBlock(address, byteCount);
+			}
+				 
+			* Represents a block of memory we don't own. 			代表一块内存 不是有GC拥有的
+			* (We don't take ownership of memory corresponding
+			* to direct buffers created by the JNI NewDirectByteBuffer function.)
+	
+		    private static class UnmanagedBlock extends MemoryBlock {
+		        private UnmanagedBlock(long address, long byteCount) {
+		            super(address, byteCount);
+		        }
+		    } 														// UnmanagedBlock 没有override MemoryBlock的array方法(返回NULL)
+	
+		 	private MemoryBlock(long address, long size) {			// 只是保存了内存地址
+				this.address = address;
+				this.size = size;
+				accessible = true;
+				freed = false;
+			}
+
+
+
+	ByteBuffer的array:
+			
+		// java/nio/ByteBuffer.java
+		@Override 
+		public final byte[] array() {
+			return protectedArray();
+		}
+
+		// java/nio/DirectByteBuffer.java
+		@Override 
+		byte[] protectedArray() {
+			checkIsAccessible();
+			if (isReadOnly) {
+				throw new ReadOnlyBufferException();
+			}
+			byte[] array = this.block.array(); <= 实际调用的是MemoryBlock的array
+			if (array == null) {
+				throw new UnsupportedOperationException();
+			}
+			return array;
+		}
+			
+		// java/nio/MemoryBlock.java
+		class MemoryBlock{
+			... 
+			public byte[] array() {
+				return null;		//	基类MemoryBlock就是返回NULL 
+			}						//	JNI创建DirectByteBuffer的UnmanagedBlock没有override
+			... 					//  ByteBuffer.allcateDirect创建DirectByteBuffer的NonMovableHeapBlock override了返回array
+		}
+
+		JNI 的 MemoryBlock 是  UnmanagedBlock 
+		没有override  array() 
+		
+		ByteBuffer.allcateDirect 的MemoryBlock 是 NonMovableHeapBlock 
+			@Override public byte[] array() {
+			 return array ; 有返回 array 
+		}
+
+
+	Bytebuffer.allocateDirect的实现:
+		 
+			
+		=> libcore/libart/src/main/java/dalvik/system/VMRuntime.java
+				
+		Returns an array allocated in an area of the Java heap where it will never be moved.
+		This is used to implement native allocations on the Java heap, such as DirectByteBuffers
+		and Bitmaps. 执行原生分配在Java Heap上 比如DirectByteBuffers和Bitmap
+
+		=> public native Object newNonMovableArray(Class<?> componentType, int length);
+		
+		=> art/runtime/native/dalvik_system_VMRuntime.cc
+		=>  static jobject VMRuntime_newNonMovableArray(JNIEnv* env, jobject, jclass javaElementClass,jint length) 
+
+	
+	MemoryBlock继承关系 (java/nio/MemoryBlock.java )
+   		MemoryBlock
+   		-> MemoryMappedBlock    
+   		-> NonMovableHeapBlock 
+   		-> UnmanagedBlock 
+   		
+   		
+	*/
+	private class MallocDirect implements Runnable
+	{
+	
+		public ArrayList<ByteBuffer> direct_array  = new ArrayList<ByteBuffer>();
+		
+		@Override
+		public void run() {
+			for(int j = 0 ; j < 257 ; j++){
+				Log.v(TAG, "> >" + Long.toString(Debug.getNativeHeapAllocatedSize()));
+				ByteBuffer bbu = ByteBuffer.allocateDirect(1000000); 	// 在Davlik JVM上 分配在Davlik Heap, 所以也会导致 OOM Davlik Heap超过256 
+				//ByteBuffer bbu = ByteBuffer.allocate(1000000); 		// 都会导致 java.lang.OutOfMemoryError
+				Log.d(TAG, "bbu direct = " + bbu.isDirect() + " j = " + j );
+				byte[] bba = bbu.array(); 	
+				
+				bba[0] = 1 ;
+				direct_array.add(bbu); 
+				
+				Log.v(TAG, "< <" +  Long.toString(Debug.getNativeHeapAllocatedSize()));
+				
+				try {
+					Thread.sleep(500);
+				} catch (InterruptedException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
+			}
+			
+			Log.d(TAG, "free bbu ");
+			while(direct_array.size() > 0){
+				direct_array.remove(0);
+			}
+		}
+	}
+	
 	@Override
 	protected void onCreate(Bundle savedInstanceState) {
 		super.onCreate(savedInstanceState);
@@ -38,7 +228,10 @@ public class ByteBufferActivity extends Activity {
 		mSh = mSv.getHolder();
 		mSh.setKeepScreenOn(true);
 		mSh.addCallback(new SurfaceCallback());
-
+		
+		
+		//new Thread(new MallocDirect()).start();
+		
 		((Button) findViewById(R.id.bStart)).setOnClickListener(new View.OnClickListener() {
 			@Override
 			public void onClick(View v) {
@@ -139,12 +332,12 @@ public class ByteBufferActivity extends Activity {
 						data.isDirect(),
 						data.isReadOnly() );	
 				/*
-				 * asReadOnlyBuffer:
-				 * ByteBuffer: [1479453319 9827][0 0 0 1][pos:0 lef:9827 cap:9827 lim:9827 dir:true]
-				 * ByteBuffer: [1479453319 11140][0 0 0 1][pos:0 lef:11140 cap:11140 lim:11140 dir:true]
-				 * ByteBuffer: [1479453318 5297][0 0 0 1][pos:0 lef:5297 cap:5297 lim:5297 dir:true]
+				 * 如果调用了asReadOnlyBuffer:
+				 * ByteBuffer: [1479463015 1314][0 0 0 1][pos:0 lef:1314 cap:1314 lim:1314 dir:true rd:true]
+				 * ByteBuffer: [1479463015 2161][0 0 0 1][pos:0 lef:2161 cap:2161 lim:2161 dir:true rd:true]
+				 * ByteBuffer: [1479463015 25303][0 0 0 1][pos:0 lef:25303 cap:25303 lim:25303 dir:true rd:true]
 				 *
-				 * 不是 asReadOnlyBuffer
+				 * 如果不调用 asReadOnlyBuffer
 				 * ByteBuffer: [1479453722 9431][0 0 0 1][pos:0 lef:9431 cap:9431 lim:9431 dir:true rd:false]
 				 * ByteBuffer: [1479453722 3399][0 0 0 1][pos:0 lef:3399 cap:3399 lim:3399 dir:true rd:false]
 				 * ByteBuffer: [1479453722 9677][0 0 0 1][pos:0 lef:9677 cap:9677 lim:9677 dir:true rd:false]
