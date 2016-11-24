@@ -18,6 +18,7 @@ import com.tom.codecanativewin.MediaPlayerActivity;
 import com.tom.codecanativewin.NativeWinCodecActivity;
 import com.tom.codecanativewin.R;
 import com.tom.codecanativewin.RtspPlayerActivity;
+import com.tom.opengl.DecodeYUVGLActivity;
 import com.tom.codecanativewin.R.id;
 import com.tom.codecanativewin.R.layout;
 
@@ -130,7 +131,13 @@ public class MainActivity extends Activity {
 		case R.id.bColorFormat:
 			start = new Intent(MainActivity.this, FormatActivity.class);
 			this.startActivity(start);
+			this.finish();	
+			break;
+		case R.id.bDecodeYUVGL:
+			start = new Intent(MainActivity.this, DecodeYUVGLActivity.class);
+			this.startActivity(start);
 			this.finish();			
+			break;
 		default:
 			Log.d(TAG, "unknown Btn");
 			break;

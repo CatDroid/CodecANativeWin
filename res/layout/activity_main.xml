@@ -107,4 +107,12 @@
 	    android:text="颜色空间"
 	    android:onClick="funcOnClick" />
 
+	<Button
+	    android:id="@+id/bDecodeYUVGL"
+	    android:layout_width="wrap_content"
+	    android:layout_height="wrap_content"
+	    android:layout_below="@+id/bRtsp"
+	    android:onClick="funcOnClick"
+	    android:text="解码YUV GL转RGB显示" />
+
 </RelativeLayout>
