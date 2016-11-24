@@ -58,8 +58,9 @@ void* NativeContext::cbEventThread(void* argv)
 					ABuffer* buf = (ABuffer*)msg->ptr ;
 
 					jobject byteBuffer = jenv->NewDirectByteBuffer( buf->mData ,  buf->mActualSize );
-				  	jobject readOnlyBuffer = jenv->CallObjectMethod(
-				  								byteBuffer, pData->jByteBuffer.asReadOnlyBuffer);
+				  	//jobject readOnlyBuffer = jenv->CallObjectMethod(
+				  	//							byteBuffer, pData->jByteBuffer.asReadOnlyBuffer);
+
 					/*
 					 * asReadOnlyBuffer:
 					 * ByteBuffer: [1479453319 9827][0 0 0 1][pos:0 lef:9827 cap:9827 lim:9827 dir:true]
@@ -73,7 +74,7 @@ void* NativeContext::cbEventThread(void* argv)
 					 * ByteBuffer: [1479453722 10880][0 0 0 1][pos:0 lef:10880 cap:10880 lim:10880 dir:true rd:false]
 					 *
 					 */
-				  	jenv->DeleteLocalRef(byteBuffer);
+				  	//jenv->DeleteLocalRef(byteBuffer);
 
 				  	if (jenv->ExceptionCheck() ) {
 				  		ALOGE("exceptioin 1 %p %d " , buf->mData ,  buf->mActualSize  );
@@ -109,7 +110,7 @@ void* NativeContext::cbEventThread(void* argv)
 
 				  	jobject jabuffer = jenv->NewObject(
 				  			pData->jABuffer.thizClass, pData->jABuffer.constructor,
-				  			buf , buf->mDataType ,buf->mTimestamp, buf->mCaptical , buf->mActualSize , readOnlyBuffer);
+				  			buf , buf->mDataType ,buf->mTimestamp, buf->mCaptical , buf->mActualSize , byteBuffer);//readOnlyBuffer);
 
 				  	if (jenv->ExceptionCheck() ) {
 				  		ALOGE("exceptioin 2 %p %d " , buf->mData ,  buf->mActualSize  );
@@ -143,8 +144,8 @@ void* NativeContext::cbEventThread(void* argv)
 					 * 	JNI ERROR (app bug): global reference table overflow (max=51200)
 					 *
 					 */
-					//jenv->DeleteLocalRef(byteBuffer);
-					jenv->DeleteLocalRef(readOnlyBuffer);
+					jenv->DeleteLocalRef(byteBuffer);
+					//jenv->DeleteLocalRef(readOnlyBuffer);
 					jenv->DeleteLocalRef(jabuffer);
 
 					pData->abuffer_num ++ ;

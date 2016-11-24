@@ -15,7 +15,13 @@
 JNIEXPORT void JNICALL  native_release( JNIEnv * env , jobject jobj , jlong ctx )
 {
 	ABuffer* pABuffer = (ABuffer*) ctx ;
-	ALOGI("release buffer %p %p" , pABuffer , pABuffer->mData );
+	unsigned char* buffer = (unsigned char*)pABuffer->mData ;
+	ALOGI("release buffer %p %p [%02x %02x %02x %02x %02x]" , pABuffer , pABuffer->mData ,
+										buffer[0]  ,
+										buffer[1]  ,
+										buffer[2]  ,
+										buffer[3]  ,
+										buffer[4]   );
 	pABuffer->mpSelfManager->releaseBuffer(pABuffer);
 }
 

@@ -265,6 +265,7 @@ static void* decodeh264_thread(void* argv)
 			            }
 
 #if 1
+			            //usleep(5*1000*1000);
 				        usleep(30 * 1000);
 #else
 				       	if( sample_count % 100 == 0 ){
@@ -503,12 +504,15 @@ static void* cleaner_up_thread(void* ptr)
 
 JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 {
-	ALOGI("native_stop");
+	ALOGI("native_stop begin ");
 	NativeContext* pData = (NativeContext*)ctx ;
 	if( pData != NULL){
 
+		ALOGI("pData->mforceClose %d \n" ,pData->mforceClose );
+
 		pData->mforceClose = true ;
 
+		ALOGI("stop offer buffer !");
 		ABufferManager* bm =  pData->m_pABufferManager;
 		bm->stop_offer();
 		// 1. dont offer buffer any more
@@ -516,11 +520,13 @@ JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 		// 3. ?? wait for all buffer release
 		// 4. delele buffer manager
 
+		ALOGI("native_stop join mDeocdeOutTh!");
 		if(pData->mDeocdeOutTh != -1){
 			pthread_join(pData->mDeocdeOutTh,NULL);
 			ALOGI("DeocdeOutTh exit");
 		}
 
+		ALOGD("native_stop join mDeocdeTh!");
 		if(pData->mDeocdeTh != -1){
 			pthread_join(pData->mDeocdeTh,NULL);
 			// 	如果这里不能返回一直join 将会导致
@@ -547,6 +553,7 @@ JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 			pData->mFd=-1;
 		}
 
+		ALOGD("delete NativeContext ");
 
 		delete pData; // stop event loop before free bufferManager
 
@@ -555,9 +562,49 @@ JNIEXPORT void JNICALL native_stop(JNIEnv * env , jobject jobj , jlong ctx )
 		pthread_t temp ;
 		::pthread_create(&temp , NULL, ::cleaner_up_thread, bm );
 
+		ALOGI("stop done done!");
 	}else{
 		ALOGE("Native STOP Before");
 	}
+	ALOGI("native_stop end ");
+}
+
+
+
+JNIEXPORT jobject JNICALL native_obtainBuffer(JNIEnv * env , jobject jobj , jlong ptr_ctx , jint total_size)
+{
+	ALOGI("native_obtainBuffer");
+	NativeContext* ctx = (NativeContext*)ptr_ctx ;
+	if( ctx != NULL){
+        ABuffer * pbuffer = ctx->m_pABufferManager->obtainBuffer();
+        if( pbuffer != NULL){
+
+        	int triSize = total_size ;
+
+        	if( total_size > pbuffer->mCaptical ){
+        		triSize = pbuffer->mCaptical;
+        		ALOGE("too big buffer required total_size = %d  Captical = %d ", total_size , pbuffer->mCaptical);
+        	}
+
+			ALOGD("native_obtainBuffer ABuffer:%p mData:%p ", pbuffer, pbuffer->mData);
+			pbuffer->mDataType =  2 ;
+			pbuffer->mActualSize = triSize ;
+			pbuffer->mTimestamp = 0  ;
+
+			{
+				jobject byteBuffer = env->NewDirectByteBuffer( pbuffer->mData ,  pbuffer->mActualSize );
+				jobject jabuffer = env->NewObject(
+						ctx->jABuffer.thizClass, ctx->jABuffer.constructor,
+						pbuffer , pbuffer->mDataType  ,pbuffer->mTimestamp, pbuffer->mCaptical , pbuffer->mActualSize , byteBuffer);//readOnlyBuffer);
+				return jabuffer ;
+			}
+        }else{
+        	ALOGE("native_obtainBuffer obtainBuffer abort");
+        }
+	}else{
+		ALOGE("Native STOP Before");
+	}
+	return NULL ;
 }
 
 
@@ -609,6 +656,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
     	{ "native_setup", "()J", (void*)native_setup },
     	{ "native_start", "(JLandroid/view/Surface;Ljava/lang/String;[B[BLjava/lang/Object;)V", (void*)native_start },
     	{ "native_stop",  "(J)V", (void*)native_stop },
+    	{ "native_obtainBuffer", "(JI)Ljava/lang/Object;", (void*)native_obtainBuffer },
     };
 	jniRegisterNativeMethods( env, JAVA_CLASS_PATH ,  method_table, NELEM(method_table)) ;
 

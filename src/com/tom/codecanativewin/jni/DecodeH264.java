@@ -33,10 +33,18 @@ public class DecodeH264 {
 		native_start(mNativeContext ,  surface , path ,   sps ,   pps ,  new WeakReference<DecodeH264>(this) );
 	}
 	
-	public void release(){
+	public synchronized void  release(){
 		native_stop( mNativeContext );
+		mNativeContext = 0 ;
 	}
 	
+	public synchronized ABuffer obtainBuffer(int total_size ){
+		if(mNativeContext == 0 ){
+			Log.e(TAG, "DecodeH264 is release but require ABuffer");
+			return null;
+		}
+		return (ABuffer)native_obtainBuffer(mNativeContext,total_size );
+	}
 	
 	
 	public interface onInfoListener 
@@ -58,6 +66,7 @@ public class DecodeH264 {
 		mOnDataListener = data ;
 	}
 	
+	native private Object native_obtainBuffer(long ctx , int total_size);
 	
 	native private long native_setup();
 	native private void native_start( long ctx , Surface surface , String path , byte[] sps , byte pps[] , Object wek_thiz );

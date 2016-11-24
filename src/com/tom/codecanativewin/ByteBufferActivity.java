@@ -349,55 +349,86 @@ public class ByteBufferActivity extends Activity {
 					@Override
 					public void run() {
 						Log.d(TAG , "delay release");
+						
+						
+						ByteBuffer data =  delayBuffer.mData ;
+						/*
+						 * 1.对于 DirectByteBuffer
+						 * 	不可以
+						 * 		byte[] array = data.array();
+						 * 	会出现异常
+						 * 		Pending exception java.lang.UnsupportedOperationException:
+						 * 
+						 * 	但是可以 (write或者read only都可以)
+						 *		IntBuffer buffer = data.asIntBuffer();
+						 *
+						 *	对于可write的direct buffer:
+						 *		buffer.put(12); // postion会向前移动 , 使用put和get来读取数据
+						 *		也可以进行 buffer.put(byte[])
+						 *		或者进行 buffer.put(ByteBuffer)  两个JNI创建的DirectByteBuffer相互拷贝 注意postion都会同时改变
+						 *	对于only read的direct buffer
+						 *		不能进行put操作 否则 ReadOnlyBufferException
+						 *	
+						 *	
+						 * 2.ReadOnly的DirectByteBuffer,不能进行put
+						 * 	否则 
+						 * 		Pending exception java.nio.ReadOnlyBufferException
+						 * 	try{
+						 *		data.put((byte)12);
+						 * 	}catch(java.nio.ReadOnlyBufferException ronly){
+						 *		Log.e(TAG,"ronly " + ronly.getMessage() );
+						 * 	}
+						 * 
+						 * 3.如果put的数据大于容量 将会出现exception:
+						 * 		java.nio.BufferOverflowException
+						 * 
+						 * 
+						 */
+				
+						/*
+						 * Demo:
+						 * 底层同一个BufferManager限制了数目
+						 * 所以如果onData返回的ABuffer不释放的话 这样这里也不能再获取数据
+						 * 底层抛送数据可能以及用光了ABuffer
+						 */
+//						ABuffer dstBuffer = mH264de.obtainBuffer(data.remaining());
+//						if(dstBuffer != null){
+//							Log.d(TAG, "1 dstBuffer.mData pos = " + dstBuffer.mData.position() + " cap = " + dstBuffer.mData.capacity() + " limit = " +  dstBuffer.mData.limit());
+//							dstBuffer.mData.put(data); // 从一个JNI的NewDirectByteBuffer到另外一个
+//							Log.d(TAG, "2 dstBuffer.mData pos = " + dstBuffer.mData.position() + " cap = " + dstBuffer.mData.capacity() + " limit = " +  dstBuffer.mData.limit());
+//							dstBuffer.release();
+//							Log.d(TAG, "srcBuffer after put " + data.position() ); 	// 注意ByteBuffer.put之后 会修改掉 源ByteBuffer和目标ByteBuffer的postion 
+//							data.position(0);										// 如果把ByteBuffer postion为0 后面就会  IntBuffer pos = 0 cap = 0 limit = 0	 				
+//						}
+							
+
+						/*
+							ByteBuffer: 1 dstBuffer.mData pos = 0 cap = 4441 limit = 4441
+							ByteBuffer: 2 dstBuffer.mData pos = 4441 cap = 4441 limit = 4441
+							ByteBuffer: srcBuffer after put 4441
+						 * 
+						 * */
+						data.order(ByteOrder.nativeOrder());// 00 00 00 01  => big:00000001 / little:01000000
+						IntBuffer buffer = data.asIntBuffer(); // asIntBuffer只会对应 ByteBuffer剩下的内容 
+						Log.d(TAG, "IntBuffer pos = " + buffer.position() + " cap = " + buffer.capacity() + " limit = " + buffer.limit() );
+						Log.d(TAG, ">>> 0: " + buffer.get(0) + " pos:" + buffer.position() );
+						buffer.put(10);
+						Log.d(TAG, "<<< 0: " + buffer.get(0) + " pos:" + buffer.position() ); //  <<< 0: 10 pos:1
+						
+						Log.d(TAG, "bytebuffer pos " + data.position() ); // bytebuffer pos 0   对IntBuffer的修改不会影响原来ByteBuffer的position
+						data.position(0);
+						byte[] setdata = {0 , 1 , 2 , 3};
+						data.put(setdata);	
+
+						Log.d(TAG, "<<< 0: " + data.get(2) + " pos:" + data.position() );
+						
 						delayBuffer.release();
+						
 					}
 				},1000); // delay 1 second , and then release buffer
 				
 				Log.d(TAG,log);
-				
-				/*
-				 * 1.对于 DirectByteBuffer
-				 * 	不可以
-				 * 		byte[] array = data.array();
-				 * 	会出现异常
-				 * 		Pending exception java.lang.UnsupportedOperationException:
-				 * 
-				 * 	但是可以 (write或者read only都可以)
-				 *		IntBuffer buffer = data.asIntBuffer();
-				 *
-				 *	对于可write的direct buffer:
-				 *		buffer.put(12); // postion会向前移动 , 使用put和get来读取数据
-				 *	对于only read的direct buffer
-				 *		不能进行put操作 否则 ReadOnlyBufferException
-				 *	
-				 *	
-				 * 2.ReadOnly的DirectByteBuffer,不能进行put
-				 * 	否则 
-				 * 		Pending exception java.nio.ReadOnlyBufferException
-				 * 	try{
-				 *		data.put((byte)12);
-				 * 	}catch(java.nio.ReadOnlyBufferException ronly){
-				 *		Log.e(TAG,"ronly " + ronly.getMessage() );
-				 * 	}
-				 * 
-				 * 3.如果put大于容量 将会出现exception:
-				 * 		java.nio.BufferOverflowException
-				 * 
-				 * 
-				 * 4. 由于HeapByteBuffer和DirectByteBuffer类都是default类型的 所以你无法字节访问到
-				 * 		你只能通过ByteBuffer间接访问到它 因为JVM不想让你访问到它
-				 * 		在NIO的框架下,很多框架会采用DirectByteBuffer来操作 
-				 * 		这样分配的内存不再是在java heap上,而是在C heap上 
-				 * 		经过性能测试,可以得到非常快速的网络交互,在大量的网络交互下,一般速度会比HeapByteBuffer要快速好几倍
-				 * 	  !!!! 在OpenJDK 和 Android的Java DirectByteBuffer.java中 没有 Cleaner !	(sun.misc.Cleaner)
-				 */
-				 
-//				IntBuffer buffer = data.asIntBuffer();
-//				Log.d(TAG, ">>> 0: " + buffer.get(0) + " pos:" + buffer.position() );
-//				buffer.put(10);
-//				Log.d(TAG, "<<< 0: " + buffer.get(0) + " pos:" + buffer.position() );
-				
- 
+	
 			}
 			
 		}
