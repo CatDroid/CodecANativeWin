@@ -17,6 +17,9 @@
 #include <list>
 
 
+#include <EGL/egl.h>
+#include <GLES/gl.h>
+
 #define LOG_TAG "jni_decodeh264"
 #include "vortex.h"
 #include "native_msg.h"
@@ -623,6 +626,18 @@ JNIEXPORT long native_setup(JNIEnv * env , jobject jobj)
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
+
+//  call to OpenGL ES API with no current context (logged once per thread)
+//	Fatal signal 11 (SIGSEGV), code 1, fault addr 0x0 in tid 23759 (codecanativewin)
+//
+//	ALOGD("get ginfo");
+//	GLenum opengl_info[] = {GL_VENDOR, GL_RENDERER, GL_VERSION, GL_EXTENSIONS};
+//	for ( int i = 0 ; i < sizeof(opengl_info)/sizeof(GLenum) ; i++ ){
+//    	const GLubyte * info = glGetString((GLenum)opengl_info[i]);
+//        ALOGD("OpenGL Info: %u", *info);
+//    }
+
+
     JNIEnv* env ;
     if ( vm->GetEnv( (void**) &env, JNI_VERSION_1_6 )  != JNI_OK) {
     	ALOGE("GetEnv Err");

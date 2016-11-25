@@ -44,7 +44,7 @@ LOCAL_SHARED_LIBRARIES := libCommon
 include $(BUILD_SHARED_LIBRARY)
 ##############################################################################
 include $(CLEAR_VARS)
-LOCAL_LDLIBS    := -llog -landroid -lmediandk
+LOCAL_LDLIBS    := -llog -landroid -lmediandk -lGLESv1_CM -lEGL
 LOCAL_MODULE    := DecodeH264
 LOCAL_SRC_FILES := DecodeH264.cpp  
 LOCAL_SHARED_LIBRARIES := libCommon
