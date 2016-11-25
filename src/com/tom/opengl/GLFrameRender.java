@@ -20,7 +20,7 @@ public class GLFrameRender implements Renderer {
 	private final static String TAG = "GLFrameRender" ;
 	
     private GLSurfaceView mTargetSurface;
-    private GLProgram program = new GLProgram(0);
+    private GLProgram mProgram = null; 
     private int mScreenWidth, mScreenHeight;
     private int mVideoWidth, mVideoHeight;
     private ByteBuffer y;
@@ -36,8 +36,9 @@ public class GLFrameRender implements Renderer {
     @Override
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
     	Log.d(TAG, "onSurfaceCreated");
-        if (!program.isProgramBuilt()) {
-            program.buildProgram();
+        if (mProgram == null ) {
+        	mProgram = new GLProgram(0); 
+        	mProgram.buildProgram();
         }
     }
 
@@ -57,10 +58,10 @@ public class GLFrameRender implements Renderer {
                 u.position(0);
                 v.position(0);
                 //GLES20.glViewport(0, 0, mVideoHeight, mVideoWidth);
-                program.buildTextures(y, u, v, mVideoWidth, mVideoHeight); // 提供图像 给纹理
+                mProgram.buildTextures(y, u, v, mVideoWidth, mVideoHeight); // 提供图像 给纹理
                 GLES20.glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
                 GLES20.glClear(GLES20.GL_COLOR_BUFFER_BIT);
-                program.drawFrame();
+                mProgram.drawFrame();
 
       
             }
@@ -90,14 +91,14 @@ public class GLFrameRender implements Renderer {
                     float f2 = 1f * h / w;
                     Log.d(TAG, "update ? " + (f1 == f2) );
                     if (f1 == f2) {
-                        program.createBuffers(GLProgram.squareVertices); // 顶点 fullscreen 
+                    	mProgram.createBuffers(GLProgram.squareVertices); // 顶点 fullscreen 
                     } else if (f1 < f2) {
                         float widScale = f1 / f2;
-                        program.createBuffers(new float[] { -widScale, -1.0f, widScale, -1.0f,
+                        mProgram.createBuffers(new float[] { -widScale, -1.0f, widScale, -1.0f,
                                 -widScale, 1.0f, widScale,1.0f, });
                     } else {
                         float heightScale = f2 / f1;
-                        program.createBuffers(new float[] { -1.0f, -heightScale, 1.0f, -heightScale,
+                        mProgram.createBuffers(new float[] { -1.0f, -heightScale, 1.0f, -heightScale,
                                 -1.0f, heightScale, 1.0f, heightScale, });
                     }
                 }

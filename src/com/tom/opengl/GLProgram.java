@@ -204,14 +204,16 @@ public class GLProgram {
         GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE, _video_width, _video_height, 0,
                 GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, y);
         /*
+         *  把图片提交到 指定纹理 的 指定纹理目标
+         *  
          	glTexImage2D(GL_TEXTURE_2D, 0, 3, Bit.Width, Bit.Height, 0, GL_RGB, GL_UNSIGNED_BYTE, Pixels);
          	glTexImage函数的参数分别是
          	纹理的类型  纹理的等级  每个像素的字节数   纹理图像的宽度和高度  边框大小  像素数据的格式  像素值的数据类型  像素数据
          	
          	
          	GL_APHPA			按照ALPHA值存储纹理单元		RGBA = (0, 0, 0, X)
-			GL_LUMINANCE		按照亮度值存储纹理单元		RGBA = (X, X, X, 1) 
-			GL_LUMINANCE_ALPHA	按照亮度和alpha值存储纹理单元	RGBA = (X, X, X, X)
+			GL_LUMINANCE		按照亮度值存储纹理单元		RGBA = (X, X, X, 1)	data的每个单元(GL_UNSIGNED_BYTE) 作为一个单独的值 luminance, r g b都是同样的luminance值  sharder中可以用r/g/b a是1  
+			GL_LUMINANCE_ALPHA	按照亮度和alpha值存储纹理单元	RGBA = (X, X, X, Y) data的每两个单元(GL_UNSIGNED_BYTE 相邻两个字节 作为一个luminance/alpha对 )
 			GL_RGB				按照RGB成分存储纹理单元
 			GL_RGBA				按照RGBA成分存储纹理单元
          */
@@ -255,13 +257,32 @@ public class GLProgram {
         /*
          * void android.opengl.GLES20.glTexImage2D(
          * 		int target, int level, int internalformat,  // << internalformat 
-         * 		int width, int height, int border, 
-         * 		int format, // << format 	GL_COLOR_INDEX, GL_STENCIL_INDEX, GL_DEPTH_COMPONENT, GL_RGB, GL_BGR, GL_RGBA, GL_BGRA, GL_RED, GL_GREEN, GL_BLUE, GL_ALPHA, GL_LUMINANCE, and GL_LUMINANCE_ALPHA are accepted.
-         * 		int type, 	//				GL_UNSIGNED_SHORT GL_UNSIGNED_BYTE GL_UNSIGNED_SHORT_4_4_4_4 GL_UNSIGNED_SHORT_5_6_5
+         * 		int width, int height,  // support  2D texture images that are at least 64 texels wide/high 
+         * 		int border, 
+         * 		
+         * 		// 下面三个参数 代表 数据在内存中的呈现方式 
+         * 
+         * 		int format, // << format	GL_ALPHA, GL_RGB, GL_RGBA, GL_LUMINANCE, and GL_LUMINANCE_ALPHA
+         * 		int type, 	//				GL_UNSIGNED_BYTE, GL_UNSIGNED_SHORT_5_6_5, GL_UNSIGNED_SHORT_4_4_4_4, and GL_UNSIGNED_SHORT_5_5_5_1.
          * 		Buffer pixels)
          * 
+         * 		数据以byte或者short(根据type)来读取
+         * 		如果type是GL_UNSIGNED_BYTE 每个byte作为一个颜色分量
+         * 		如果type是GL_UNSIGNED_SHORT_** 每个short作为一个单独纹理元素的所有分量(根据format来分配颜色分量)
+         * 		
+         * 		根据format,颜色分量 有 1/2/3/4个值作为一组  
          * 
-         * (_video_width/2,_video_height/2) --> (1,1) --> 插值???
+         * 		width × height 纹素   这些纹理是从相邻的存储单元  除非当所有的width texels读取完毕  那么读指针会跳到  4字节边界 对齐 可以通过 glPixelStorei 修改成1/2/4/8对齐
+         * 	
+         * 		读取第一个元素 对应 左下角 的 texture image		
+         * 		读取后面的元素  从 左 到 右 处理  填入 texture image
+         * 		最后到达  texture image	的  右上角
+         * 
+         * 		所有颜色分量 会转成浮点数
+         * 		如果类型type是 GL_UNSIGNED_BYTE 每个颜色分量 除以2^8-1
+         * 		如果类型type是GL_UNSIGNED_SHORT_* 每个颜色分量 除以  2^N - 1  N是每颜色分量占的位数
+         * 
+         * 		(_video_width/2,_video_height/2) --> (1,1) --> 插值???
          */
         GLES20.glTexImage2D(GLES20.GL_TEXTURE_2D, 0, GLES20.GL_LUMINANCE, _video_width / 2, _video_height / 2, 0,
                 GLES20.GL_LUMINANCE, GLES20.GL_UNSIGNED_BYTE, v);// 把数据给到 纹理  (这时候 纹理和纹理单元还没有 绑定在一起 )
@@ -432,9 +453,9 @@ public class GLProgram {
     		"varying vec2 tc;\n" + 
     		"void main() {\n" + 
     		// texture2D 得到一个纹素 texel 这是一个纹理图片中的像素  参数是simpler2D以及纹理坐标
-            "vec4 c = vec4((texture2D(tex_y, tc).r - 16./255.) * 1.164);\n" + 
-            "vec4 U = vec4(texture2D(tex_u, tc).r - 128./255.);\n" + 
-            "vec4 V = vec4(texture2D(tex_v, tc).r - 128./255.);\n" + 
+            "vec4 c = vec4((texture2D(tex_y, tc).b - 16./255.) * 1.164);\n" + // 内置的纹理查找函数/built-in texture lookup functions
+            "vec4 U = vec4(texture2D(tex_u, tc).b - 128./255.);\n" + 
+            "vec4 V = vec4(texture2D(tex_v, tc).b - 128./255.);\n" + 
             "c += V * vec4(1.596, -0.813, 0, 0);\n" +  // .g
             "c += U * vec4(0, -0.392, 2.017, 0);\n" +  // .b
             "c.a = 1.0;\n" + 
