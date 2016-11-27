@@ -1,14 +1,10 @@
-package com.tom.opengl;
+package com.tom.opengl.one;
 
-import java.io.File;
 import java.io.IOException;
 import java.nio.ByteBuffer;
-
+ 
 import com.tom.codecanativewin.R;
-
 import android.app.Activity;
-import android.app.AlertDialog;
-import android.content.Intent;
 import android.graphics.ImageFormat;
 import android.graphics.Rect;
 import android.media.Image;
@@ -16,23 +12,15 @@ import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaExtractor;
 import android.media.MediaFormat;
-import android.os.Environment;
-import android.os.Handler;
-import android.os.Message;
 import android.util.Log;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.AdapterView;
-import android.widget.ArrayAdapter;
 import android.widget.Button;
-import android.widget.EditText;
-import android.widget.Spinner;
-import android.widget.TextView;
 
-public class DecodeYUVGLActivity extends Activity {
+public class Texture1RGBActivity extends Activity {
 
 	public final static String TAG = "DecodeYUVGLActivity" ; 
-    private String outputDir;
+  
     
     private YUVGLSurfaceView mYuvGlView = null; 
     private DecodeThread mThread = null; 
@@ -40,7 +28,7 @@ public class DecodeYUVGLActivity extends Activity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.opengl_camera);
+        setContentView(R.layout.opengl_texture_one);
 
         mYuvGlView = (YUVGLSurfaceView) findViewById(R.id.vYUVSurface);
         
@@ -76,6 +64,7 @@ public class DecodeYUVGLActivity extends Activity {
     
     public final String DECODE_FILE_NAME = "/mnt/sdcard/wushun.3gp" ;
     
+  
     public class DecodeThread extends Thread
     {
     	private final int DEFAULT_TIMEOUT_US = 200000;
@@ -103,10 +92,6 @@ public class DecodeYUVGLActivity extends Activity {
             int format = image.getFormat();
             switch (format) {
                 case ImageFormat.YUV_420_888:
-                // https://developer.android.com/reference/android/media/Image.html
-                // Image 没有支持下面两种格式 ！！
-                //case ImageFormat.NV21: 
-                //case ImageFormat.YV12:
                     return true;
             }
             return false;
@@ -165,7 +150,7 @@ public class DecodeYUVGLActivity extends Activity {
 	            final int width = mediaFormat.getInteger(MediaFormat.KEY_WIDTH);
 	            final int height = mediaFormat.getInteger(MediaFormat.KEY_HEIGHT);
 	            
-	            mRender.update(width, height);
+	            mRender.setupTempBuffer(width, height);
 	          
 	            while (!sawOutputEOS && !mStopDecode) {
 	                if (!sawInputEOS) {
@@ -197,7 +182,16 @@ public class DecodeYUVGLActivity extends Activity {
 	                    }
 	                   
 	                    if (  mInfo.size != 0  ) {
-	                       
+	                       /*
+	                    		1.从Android SDK 21开始，Android就开始推行新的原始（未压缩）图片数据的载体类Image
+	                    				和新的YUV格式YUV420Flexible，配套YUV_420_888
+	                    				用来统一Android内部混乱的中间图片数据
+	                    		
+	                    		2.硬件编解码的MediaCodec类加入了对Image和Image的封装ImageReader的全面支持，
+	                    			并推荐采用YUV420Flexible进行编解码
+
+	                    		3. 还是要自己 确定的YUV格式如YUV420Planar(I420)和YUV420SemiPlanar(NV21)
+	                    	*/ 
 	                        Image image = decoder.getOutputImage(outputBufferId);
 	                        long timestamp = image.getTimestamp();
 	                        int format = image.getFormat();
@@ -207,10 +201,16 @@ public class DecodeYUVGLActivity extends Activity {
 	                        int crop_width = crop.width();
 	                        int crop_height = crop.height();
 	                        Image.Plane[] planes = image.getPlanes();
+	                         
 	                        int num_planes = planes.length ; 
-	                        Log.d(TAG, String.format("time:%d format:%d h:%d w:%d num_planes %d crop[ %d  %d ] ", 
+	                        Log.d(TAG, String.format("time:%d format:%d h:%d w:%d num_planes %d crop[ %d  %d ] 0:[%d %d] 1:[%d %d] 2:[%d %d]", 
 	                        						timestamp, format, img_height , img_width , num_planes ,
-	                        						crop_width , crop_height )
+	                        						crop_width , crop_height ,
+	                        						planes[0].getPixelStride() ,planes[0].getRowStride() ,
+	                        						planes[1].getPixelStride() ,planes[1].getRowStride() ,
+	                        						planes[2].getPixelStride() ,planes[2].getRowStride() 
+	                        						)
+ 
 	                        					  );
 	                        
 	                        if(!isImageFormatSupported(image)){
@@ -218,25 +218,31 @@ public class DecodeYUVGLActivity extends Activity {
 	                        }
 	                      
 	                        // isDirect
-	                        // ReadOnly		java.nio.ReadOnlyBufferException	不能array()
+	                        // ReadOnly		java.nio.ReadOnlyBufferException	不能array() 只能get到一个byte[]中
 	                        ByteBuffer yBuffer = planes[0].getBuffer();
 	                        ByteBuffer uBuffer = planes[1].getBuffer();
 	                        ByteBuffer vBuffer = planes[2].getBuffer();
-	                        //Log.d(TAG, String.format("y %d u %d v %d isDirect %b pos %d",
-	                        //						yBuffer.capacity() , uBuffer.capacity() , vBuffer.capacity() , vBuffer.isDirect()
-	                        //						, vBuffer.position() ));
+	                        Log.d(TAG, String.format("y %d u %d v %d isDirect %b pos %d stride %d ",
+	                        						yBuffer.capacity() , uBuffer.capacity() , vBuffer.capacity() , vBuffer.isDirect()
+	                        						, vBuffer.position() , planes[1].getPixelStride()  ));
 	                        
-	                        mRender.update(yBuffer, uBuffer, vBuffer);
-	                        //Log.d(TAG, String.format("pos %d", vBuffer.position()));
+	                       int pixel_stride =  planes[1].getPixelStride() ;
+	                       if(planes[1].getPixelStride() != planes[2].getPixelStride()){
+	                    	   // 我们假定 plane[1] 和 [2] 的stride都是一样的
+	                    	   Log.e(TAG,"PixelStride do NOT support");
+	                    	   return ;
+	                       }
+ 	                       
+	                        mRender.update(yBuffer, uBuffer , vBuffer , pixel_stride);
+	                        
 	                        image.close(); 
-	                        // Free up this frame for reuse. 
-	                        // attempting to read from or write to ByteBuffers returned by an earlier getBuffer() call 
-	                        // will have undefined behavior. 
-	                        
-	                        Thread.sleep(30);
+	                        try{
+	                        	Thread.sleep(30);
+	                        }catch(InterruptedException e){
+	                        	Log.d(TAG,"Thread sleep!");
+	                        }
 	                    }
 	                    decoder.releaseOutputBuffer(outputBufferId, true);
-	                   
 	                }
 	            }
 
@@ -262,4 +268,7 @@ public class DecodeYUVGLActivity extends Activity {
 	        }
 		}
     }
+    
+    private ByteBuffer mUVByte = null;
+ 
 }

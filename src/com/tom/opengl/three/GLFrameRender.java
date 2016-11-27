@@ -1,4 +1,4 @@
-package com.tom.opengl;
+package com.tom.opengl.three;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -37,7 +37,7 @@ public class GLFrameRender implements Renderer {
     public void onSurfaceCreated(GL10 gl, EGLConfig config) {
     	Log.d(TAG, "onSurfaceCreated");
         if (mProgram == null ) {
-        	mProgram = new GLProgram(0); 
+        	mProgram = new GLProgram(1); 
         	mProgram.buildProgram();
         }
     }
@@ -72,10 +72,11 @@ public class GLFrameRender implements Renderer {
      * this method will be called from native code, it happens when the video is about to play or
      * the video size changes.
      */
-    public void update(int w, int h) {
+    public void update(int w, int h) { // 获取到mp4的时候设置对应的 大小
         if (w > 0 && h > 0) {
             // 初始化容器
             if (w != mVideoWidth && h != mVideoHeight) {
+            	Log.d(TAG ,String.format("[%d %d] -> [%d %d]", mVideoWidth , mVideoHeight ,  w, h  ));
                 this.mVideoWidth = w;
                 this.mVideoHeight = h;
                 int yArraySize = w * h;
@@ -86,22 +87,22 @@ public class GLFrameRender implements Renderer {
                     v = ByteBuffer.allocate(uvArraySize);
                 }
 
-                if (mVideoWidth > 0 && mVideoHeight > 0) {
-                    float f1 = 1f * mVideoHeight / mVideoWidth;
-                    float f2 = 1f * h / w;
-                    Log.d(TAG, "update ? " + (f1 == f2) );
-                    if (f1 == f2) {
-                    	mProgram.createBuffers(GLProgram.squareVertices); // 顶点 fullscreen 
-                    } else if (f1 < f2) {
-                        float widScale = f1 / f2;
-                        mProgram.createBuffers(new float[] { -widScale, -1.0f, widScale, -1.0f,
-                                -widScale, 1.0f, widScale,1.0f, });
-                    } else {
-                        float heightScale = f2 / f1;
-                        mProgram.createBuffers(new float[] { -1.0f, -heightScale, 1.0f, -heightScale,
-                                -1.0f, heightScale, 1.0f, heightScale, });
-                    }
-                }
+//                if (mVideoWidth > 0 && mVideoHeight > 0) {
+//                    float f1 = 1f * mVideoHeight / mVideoWidth;
+//                    float f2 = 1f * h / w;
+//                    Log.d(TAG, "update ? " + (f1 == f2) );
+//                    if (f1 == f2) {
+//                    	mProgram.createBuffers(GLProgram.squareVertices); // 顶点 fullscreen 
+//                    } else if (f1 < f2) {
+//                        float widScale = f1 / f2;
+//                        mProgram.createBuffers(new float[] { -widScale, -1.0f, widScale, -1.0f,
+//                                -widScale, 1.0f, widScale,1.0f, });
+//                    } else {
+//                        float heightScale = f2 / f1;
+//                        mProgram.createBuffers(new float[] { -1.0f, -heightScale, 1.0f, -heightScale,
+//                                -1.0f, heightScale, 1.0f, heightScale, });
+//                    }
+//                }
             }
             // 调整比例
             /*if (mScreenWidth == 0) {
@@ -122,12 +123,18 @@ public class GLFrameRender implements Renderer {
             y.clear();
             u.clear();
             v.clear();
+            Log.d(TAG , String.format("%d %d %d --> %d %d %d", 
+            							yData.remaining(),uData.remaining(),vData.remaining(),
+            							y.capacity(),u.capacity(),v.capacity())
+            							);
+            
             y.put(yData);
-            u.put(uData);
+            u.put(uData); // BufferOverflowExcpetion 如果uData过长 put是根据源ByteBuffer.remaining的数量来拷贝 
             v.put(vData); // positon会改变
         }
 
         // request to render
         mTargetSurface.requestRender();
     }
+    
 }

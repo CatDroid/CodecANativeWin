@@ -75,12 +75,21 @@
             android:name=".FormatActivity"
             android:label="@string/title_activity_format" >
         </activity>
+        
      	<activity
-            android:name="com.tom.opengl.DecodeYUVGLActivity"
+            android:name="com.tom.opengl.three.DecodeYUVGLActivity"
             android:label="@string/title_activity_decodeyuvgl" >
         </activity>
-        
-        
+       
+        <activity
+            android:name="com.tom.opengl.two.TextureUV2RGBActivity"
+            android:label="@string/title_activity_texture2gl" >
+        </activity> 
+              
+        <activity
+            android:name="com.tom.opengl.one.Texture1RGBActivity"
+            android:label="@string/title_activity_texture1gl" >
+        </activity>  
         
     </application>
 

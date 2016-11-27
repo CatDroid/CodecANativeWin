@@ -14,6 +14,7 @@
     <string name="title_activity_rtsp_player">RtspPlayerActivity</string>
     <string name="title_activity_new_camera">NewCameraActivity</string>
     <string name="title_activity_format">MainActivity</string>
-    <string name="title_activity_decodeyuvgl">DecodeYUVGLActivity</string>
-
+    <string name="title_activity_decodeyuvgl">三纹理转换</string>
+	<string name="title_activity_texture2gl">双纹理转换</string>
+	<string name="title_activity_texture1gl">单纹理转换</string>
 </resources>

@@ -18,7 +18,9 @@ import com.tom.codecanativewin.MediaPlayerActivity;
 import com.tom.codecanativewin.NativeWinCodecActivity;
 import com.tom.codecanativewin.R;
 import com.tom.codecanativewin.RtspPlayerActivity;
-import com.tom.opengl.DecodeYUVGLActivity;
+import com.tom.opengl.one.Texture1RGBActivity;
+import com.tom.opengl.three.DecodeYUVGLActivity;
+import com.tom.opengl.two.TextureUV2RGBActivity;
 import com.tom.codecanativewin.R.id;
 import com.tom.codecanativewin.R.layout;
 
@@ -138,6 +140,16 @@ public class MainActivity extends Activity {
 			this.startActivity(start);
 			this.finish();			
 			break;
+		case R.id.bDecodeYUVGL2Plane:
+			start = new Intent(MainActivity.this, TextureUV2RGBActivity.class);
+			this.startActivity(start);
+			this.finish();	
+			break;
+		case R.id.bDecodeYUVGL1Plane:
+			start = new Intent(MainActivity.this, Texture1RGBActivity.class);
+			this.startActivity(start);
+			this.finish();	
+			break;			
 		default:
 			Log.d(TAG, "unknown Btn");
 			break;

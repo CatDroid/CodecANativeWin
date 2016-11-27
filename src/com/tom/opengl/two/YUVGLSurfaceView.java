@@ -1,20 +1,10 @@
-package com.tom.opengl;
-
-import java.io.IOException;
-
-import javax.microedition.khronos.egl.EGLConfig;
-import javax.microedition.khronos.opengles.GL10;
+package com.tom.opengl.two;
 
 import android.content.Context;
-import android.opengl.EGL14;
 import android.opengl.GLSurfaceView;
-import android.os.Handler;
-import android.os.Message;
-import android.graphics.PixelFormat;
-import android.graphics.SurfaceTexture ;
 import android.util.AttributeSet;
 import android.util.Log;
-import android.view.SurfaceHolder;
+ 
 
 public class YUVGLSurfaceView extends GLSurfaceView  {
 	// 	Android4.0 SurfaceView
@@ -23,8 +13,7 @@ public class YUVGLSurfaceView extends GLSurfaceView  {
 	
 	private static final String TAG = "YUVGLSurfaceView" ;
 	
-	private SurfaceTexture mSurface;  
-    private Handler mCallback;
+ 
     private GLFrameRender mGLFrameRender ; 
     
     public GLFrameRender getRenderUpdate()

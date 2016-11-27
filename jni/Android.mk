@@ -50,4 +50,7 @@ LOCAL_SRC_FILES := DecodeH264.cpp
 LOCAL_SHARED_LIBRARIES := libCommon
 include $(BUILD_SHARED_LIBRARY)
 ##############################################################################
-include $(LOCAL_PATH)/tcp_udp/Android.mk
+
+#include $(LOCAL_PATH)/tcp_udp/Android.mk
+include $(LOCAL_PATH)/openGL/Android.mk
+

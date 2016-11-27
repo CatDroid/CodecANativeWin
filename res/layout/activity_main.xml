@@ -107,12 +107,34 @@
 	    android:text="颜色空间"
 	    android:onClick="funcOnClick" />
 
-	<Button
-	    android:id="@+id/bDecodeYUVGL"
+	<LinearLayout
 	    android:layout_width="wrap_content"
 	    android:layout_height="wrap_content"
+	    android:layout_alignLeft="@+id/bRtsp"
+	    android:layout_alignParentBottom="true"
 	    android:layout_below="@+id/bRtsp"
-	    android:onClick="funcOnClick"
-	    android:text="解码YUV GL转RGB显示" />
+	    android:layout_marginBottom="12dp" >
+	    
+	    <Button
+		    android:id="@+id/bDecodeYUVGL"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:onClick="funcOnClick"
+		    android:text="三纹理\nYUV-RGB" />
+
+		<Button
+		    android:id="@+id/bDecodeYUVGL2Plane"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:onClick="funcOnClick"
+		    android:text="双纹理\nYUV-RGB" />
+		
+		<Button
+		    android:id="@+id/bDecodeYUVGL1Plane"
+		    android:layout_width="wrap_content"
+		    android:layout_height="wrap_content"
+		    android:onClick="funcOnClick"
+		    android:text="单纹理\nYUV-RGB" />
+	</LinearLayout>
 
 </RelativeLayout>
