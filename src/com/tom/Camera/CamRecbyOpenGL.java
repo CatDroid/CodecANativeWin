@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.FloatBuffer;
+import java.util.Arrays;
 import java.util.HashMap;
 
 import com.tom.Camera.OldCameraActivity.MyHandler;
@@ -102,17 +103,17 @@ public class CamRecbyOpenGL extends Activity {
 			switch(msg.what){
 			case MessageType.MSG_RENDER_CREATED:
 				Log.d(TAG, "Render.surfaceCreated !");
-				if( msg.obj != null ){
-					HashMap<Integer,Object> map = (HashMap<Integer,Object>)msg.obj;
-					mSharedEGLContext = (EGLContext) map.get(0);
-					mSharedEGLSurfaceRd = (EGLSurface) map.get(1);
-					mSharedEGLSurfaceWr = (EGLSurface) map.get(2);
-					mSharedEGLDisplay = (EGLDisplay) map.get(3);
-					Log.d(TAG, "shared " + "eglcontext = " + mSharedEGLContext 
-							+ " eglsurfaceRd = " + mSharedEGLSurfaceRd 
-							+ " eglsurfaceWr = " + mSharedEGLSurfaceWr 
-							+ " egldisplay = " + mSharedEGLDisplay );
-				}
+//				if( msg.obj != null ){
+//					HashMap<Integer,Object> map = (HashMap<Integer,Object>)msg.obj;
+//					mSharedEGLContext = (EGLContext) map.get(0);
+//					mSharedEGLSurfaceRd = (EGLSurface) map.get(1);
+//					mSharedEGLSurfaceWr = (EGLSurface) map.get(2);
+//					mSharedEGLDisplay = (EGLDisplay) map.get(3);
+//					Log.d(TAG, "shared " + "eglcontext = " + mSharedEGLContext 
+//							+ " eglsurfaceRd = " + mSharedEGLSurfaceRd 
+//							+ " eglsurfaceWr = " + mSharedEGLSurfaceWr 
+//							+ " egldisplay = " + mSharedEGLDisplay );
+//				}
 				
 				// 可以不在同一个线程中 创建EGLDislpay和EGLContext
 				// 但是makeCurrent要在使用OpenGL的线程中, 使线程成为渲染线程 , 这样后面才能使用OpenGL API
@@ -140,6 +141,12 @@ public class CamRecbyOpenGL extends Activity {
 		super.onCreate(savedInstanceState);
 		setContentView(R.layout.activity_camera);
 		
+		
+		//int[] textures = new int[]{-1,-1,-1};
+       // GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, 0);
+       // GLES20.glGenTextures(3, textures, 0);
+       // Log.d(TAG, "textures = " + Arrays.toString( textures ) ); //在非OpenGL线程  textures = [-1, -1, -1] 
+        
 		CamGLSurfaceView gs = (CamGLSurfaceView)findViewById(R.id.CamSurfaceView);
 		gs.setCallback(mGLViewHandler);
 
@@ -666,7 +673,7 @@ public class CamRecbyOpenGL extends Activity {
              * 使用多线程最好的使用方式是一个线程用于纹理加载，另外一个线程用于绘图，不建议两个线程同时进行绘图操作
              */
 			int[] attrib_list = { 
-						EGL14.EGL_CONTEXT_CLIENT_VERSION, 2, 
+						EGL14.EGL_CONTEXT_CLIENT_VERSION, 3, 
 						EGL14.EGL_NONE };
 			if( mSharedEGLContext != null){
 				Log.d(TAG, "create shared context ");
