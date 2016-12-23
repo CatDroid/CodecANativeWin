@@ -59,6 +59,7 @@ public class DirectDrawer {
 	private int createTextureID() {
 		int[] texture = new int[1];
 
+		//	给Camera setSurfaceTexture的 一定是  GL_TEXTURE_EXTERNAL_OES !!
 		GLES20.glGenTextures(1, texture, 0);
 		GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, texture[0]);
 		GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES,

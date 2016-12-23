@@ -69,24 +69,29 @@ public class GLProgram420P {
     		"uniform sampler2D tex_y;\n" + 
     		"uniform sampler2D tex_uv;\n" + 
     		"varying vec2 tc;\n" + 
+    		
     		"vec4 planarYUV(sampler2D plane0, sampler2D plane1, vec2 coordinate){\n" +
-    		" float Y = texture2D(plane0, coordinate).r;\n" +
-    		" float U = texture2D(plane1, coordinate * vec2(1.0, 0.5)).r;\n" +
-    		" float V = texture2D(plane1, coordinate * vec2(1.0, 0.5) + vec2(0.0, 0.5)).r;\n" +
-    		" return vec4(Y, U, V, 1.0);\n" +
+    		" 	float Y = texture2D(plane0, coordinate).r;\n" +
+    		" 	float U = texture2D(plane1, coordinate * vec2(1.0, 0.5)).r;\n" +
+    		" 	float V = texture2D(plane1, coordinate * vec2(1.0, 0.5) + vec2(0.0, 0.5)).r;\n" +
+    		" 	return vec4(Y, U, V, 1.0);\n" +
     		"}\n" +
+    		
+    		
     		"vec4 semiplanarYUV(sampler2D plane0, sampler2D plane1, highp vec2 coordinate){\n" +
-    		" float Y = texture2D(plane0, coordinate).r;\n" +
-    		" vec4 UV = texture2D(plane1, coordinate);\n" +
-    		" return vec4(Y, UV.b, UV.a, 1.0);\n" +
+    		"	float Y = texture2D(plane0, coordinate).r;\n" +
+    		"	vec4 UV = texture2D(plane1, coordinate);\n" +
+    		"	return vec4(Y, UV.b, UV.a, 1.0);\n" +
     		"}\n" + 
+    		
+    		
     		"void main() {\n" + 
     		// semiplanarYUV
-    		"vec4 yuv = planarYUV(tex_y, tex_uv, tc);\n" + 
-    		"float R = (1.1643835616 * (yuv.x - 0.0625) + 1.5958 * (yuv.z - 0.5));\n" +
-    		"float G = (1.1643835616 * (yuv.x - 0.0625) - 0.8129 * (yuv.z - 0.5) - 0.39173 * (yuv.y - 0.5));\n" +
-    		"float B = (1.1643835616 * (yuv.x - 0.0625) + 2.017 * (yuv.y - 0.5));\n" +
-            "gl_FragColor = vec4(R, G, B, 1.0); \n"  +   
+    		"	vec4 yuv = planarYUV(tex_y, tex_uv, tc);\n" + 
+    		"	float R = (1.1643835616 * (yuv.x - 0.0625) + 1.5958 * (yuv.z - 0.5));\n" +
+    		"	float G = (1.1643835616 * (yuv.x - 0.0625) - 0.8129 * (yuv.z - 0.5) - 0.39173 * (yuv.y - 0.5));\n" +
+    		"	float B = (1.1643835616 * (yuv.x - 0.0625) + 2.017 * (yuv.y - 0.5));\n" +
+            "	gl_FragColor = vec4(R, G, B, 1.0); \n"  +   
             "}\n";
 
     /**
