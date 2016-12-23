@@ -1,5 +1,7 @@
 package com.tom.codecanativewin;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.nio.IntBuffer;
@@ -7,6 +9,7 @@ import java.util.ArrayList;
 
 import com.tom.codecanativewin.jni.ABuffer;
 import com.tom.codecanativewin.jni.DecodeH264;
+import com.tom.util.NioUtilsInvoke;
 
 import android.app.Activity;
 import android.os.Bundle;
@@ -224,6 +227,78 @@ public class ByteBufferActivity extends Activity {
 		getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); 
 		setContentView(R.layout.activity_display_h264);
 	
+		
+		/*
+		 *  测试 ByteBuffer.array()之后,使用InputStream来读 ,是否改变 ByteBuffer的position??   不会改变 !
+		 */
+		final int TRY_TO_READ = 100 ;
+		ByteBuffer arrayBuf = ByteBuffer.allocateDirect(TRY_TO_READ) ;
+		
+		byte[] array = arrayBuf.array();
+		int offset = arrayBuf.arrayOffset();
+		
+		InputStream alphaInputStream = null; 
+		try {
+			alphaInputStream = this.getApplicationContext().getResources().openRawResource(R.raw.alphamerged);
+			int readed = alphaInputStream.read(array, offset, TRY_TO_READ);
+			if(readed != TRY_TO_READ ){
+				Log.e(TAG, "InputStream read less than " + TRY_TO_READ );
+			}
+			Log.d(TAG , "after InputStream.read "  + readed + " ByteBuffer Pos is " + arrayBuf.position() );
+			
+			arrayBuf.position( TRY_TO_READ );
+			Log.d(TAG, "after Bytebuffer.position " + arrayBuf.position() );
+			arrayBuf.flip(); // for read 
+			Log.d(TAG, "after Bytebuffer.flip pos: " + arrayBuf.position() + " limit: " + arrayBuf.limit()  + " mark: " + arrayBuf.limit() );
+			Log.d(TAG, "result: arrayBuf = " + arrayBuf );
+		}catch( android.content.res.Resources.NotFoundException e){
+			Log.e(TAG, "IOException " + e.getMessage() );
+			e.printStackTrace();			
+		}catch (IOException e) {
+			Log.e(TAG, "IOException " + e.getMessage() );
+			e.printStackTrace();
+		}
+		if( alphaInputStream != null ){
+			try {
+				alphaInputStream.close();
+			} catch (IOException e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
+			}
+		}
+		
+		
+		
+		Log.d(TAG, "-----------" ); 
+		ByteBuffer bb = ByteBuffer.allocateDirect(200) ; 
+		DecodeH264.analyseByteBuffer( bb );
+		Log.d(TAG, "before pos  " + bb.get(2) ); 
+		bb.position(3); // 不会影响到 底层 GetDirectBufferAddress 返回的地址  所以应该使用 ByteBuffer.position来告诉底层偏移位置
+		DecodeH264.analyseByteBuffer( bb );
+		Log.d(TAG, "after  pos  " + bb.get(2) ); 
+		
+		ByteBuffer rdbuffer =  ByteBuffer.allocate(10);
+		rdbuffer.put(3, (byte)11);
+		rdbuffer = rdbuffer.asReadOnlyBuffer();
+		Log.d(TAG, "rdbuffer isReadOnly = " + rdbuffer.isReadOnly() );
+		// rdbuffer.array();  只读的ByteBuffer都不能array() 和  arrayOffset()
+		// rdbuffer.arrayOffset(); 
+		/*
+		 * 	Caused by: java.nio.ReadOnlyBufferException
+				at java.nio.ByteArrayBuffer.protectedArray(ByteArrayBuffer.java:88)
+				at java.nio.ByteBuffer.array(ByteBuffer.java:133)
+		 */
+		
+		// NioUtils是hide的  
+		// NioUtils.unsafeArray(rdbuffer);
+		byte[] rdonlyByteArray = NioUtilsInvoke.unsafeArray(rdbuffer);
+		int array_offset_isNOT_position = NioUtilsInvoke.unsafeArrayOffset(rdbuffer); 
+		
+		Log.d(TAG, "rdonlyByteArray[3] = " + rdonlyByteArray[3] 
+					+ " array_offset_isNOT_position " + array_offset_isNOT_position ); // 11 
+		
+		
+		
 		mSv = (SurfaceView) findViewById(R.id.viewSurface);
 		mSh = mSv.getHolder();
 		mSh.setKeepScreenOn(true);

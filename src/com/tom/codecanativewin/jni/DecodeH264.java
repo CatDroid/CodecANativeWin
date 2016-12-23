@@ -1,6 +1,7 @@
 package com.tom.codecanativewin.jni;
 
 import java.lang.ref.WeakReference;
+import java.nio.ByteBuffer;
 
 import android.util.Log;
 import android.view.Surface;
@@ -68,9 +69,14 @@ public class DecodeH264 {
 	
 	native private Object native_obtainBuffer(long ctx , int total_size);
 	
+	public static void analyseByteBuffer(ByteBuffer bb ){
+		native_analyseByteBuffer(bb);
+	}
+	
 	native private long native_setup();
 	native private void native_start( long ctx , Surface surface , String path , byte[] sps , byte pps[] , Object wek_thiz );
 	native private void native_stop( long ctx );
+	native private static void native_analyseByteBuffer(ByteBuffer bb);
 	
     static private void postEventFromNative(Object weak_ref, int what, int arg1, int arg2, Object obj)
     {

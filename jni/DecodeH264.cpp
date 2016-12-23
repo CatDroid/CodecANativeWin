@@ -623,6 +623,45 @@ JNIEXPORT long native_setup(JNIEnv * env , jobject jobj)
 	return (long)pData ;
 }
 
+jclass g_byteArrayClass ;
+void native_analyseByteBuffer(JNIEnv * env  , jclass clazz , jobject bb ){
+
+	ALOGD("native_analyseByteBuffer begin ");
+	jbyteArray bytearray = NULL;
+	jbyte* ptr = NULL ;
+	jsize cap = 0 ;
+	if (env->IsInstanceOf(bb , g_byteArrayClass)) {
+		/*
+		 * byte[]
+		 */
+		ALOGD("native_analyseByteBuffer IsInstanceOf byteArray ");
+		bytearray = reinterpret_cast<jbyteArray>(bb);
+		ptr = env->GetByteArrayElements( bytearray , NULL);
+		cap = env->GetArrayLength(bytearray);
+	} else {
+		/*
+		 * ByteBuffer.allocateDirect	-> 返回 非0
+		 * 			 .allocate			-> GetDirectBufferAddress 返回  0 !!
+		 */
+		ALOGD("native_analyseByteBuffer DirectBuffer ");
+		ptr = reinterpret_cast<jbyte*>(env->GetDirectBufferAddress(bb));
+		cap = env->GetDirectBufferCapacity(bb);
+	}
+
+	ALOGD("ptr %p cap %d isByteArray? %s " , ptr , cap , (bytearray != NULL)?"yes":"no");
+
+
+	for(int j = 0 ; j < cap ; j++){
+		*(ptr + j)  = j % 16 ;
+	}
+
+
+	if(bytearray != NULL){
+		 env->ReleaseByteArrayElements(bytearray , ptr , 0) ; // 0: copy back and free  JNI_ABORT:dont copy back and free
+	}
+}
+
+
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
@@ -643,6 +682,11 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
     	ALOGE("GetEnv Err");
     	return JNI_ERR;
     }
+
+
+    jclass byteArrayClass = env->FindClass("[B"); // byte[]
+    g_byteArrayClass = reinterpret_cast<jclass>(env->NewGlobalRef(byteArrayClass ));
+    env->DeleteLocalRef(byteArrayClass);
 
     // 64bit arm64-v8a
 	struct timeval tb_test ;
@@ -667,11 +711,16 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 		ALOGD("Error Occured GetStaticMethodID !");
 	}
 
+
+
+
+
     JNINativeMethod method_table[] = {
     	{ "native_setup", "()J", (void*)native_setup },
     	{ "native_start", "(JLandroid/view/Surface;Ljava/lang/String;[B[BLjava/lang/Object;)V", (void*)native_start },
     	{ "native_stop",  "(J)V", (void*)native_stop },
     	{ "native_obtainBuffer", "(JI)Ljava/lang/Object;", (void*)native_obtainBuffer },
+    	{ "native_analyseByteBuffer", "(Ljava/nio/ByteBuffer;)V", (void*)native_analyseByteBuffer },
     };
 	jniRegisterNativeMethods( env, JAVA_CLASS_PATH ,  method_table, NELEM(method_table)) ;
 
@@ -696,6 +745,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 		ALOGD("Error Occured GetStaticMethodID !");
 	}
 
+	ALOGD("jni onload done");
 
 	return JNI_VERSION_1_6 ;
 }
