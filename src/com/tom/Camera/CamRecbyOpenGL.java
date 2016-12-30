@@ -26,6 +26,7 @@ import android.view.SurfaceView;
 // import android.hardware.camera2.CaptureRequest;
 //
 import android.hardware.Camera;
+import android.hardware.Camera.CameraInfo;
 import android.media.MediaCodec;
 import android.media.MediaCodecInfo;
 import android.media.MediaFormat;
@@ -56,10 +57,10 @@ public class CamRecbyOpenGL extends Activity {
 	private static final String MIME_TYPE = "video/avc"; // H.264 Advanced Video
 															// Coding
 	private static final int FRAME_RATE = 30; // 30fps
-	private static final int IFRAME_INTERVAL = 5; // 5 seconds between I-frames
+	private static final int IFRAME_INTERVAL = 1; // 5 seconds between I-frames
 	private static final long DURATION_SEC = 8; // 8 seconds of video
-	private static final int ENC_WIDTH = 640 ;
-	private static final int ENC_HEIGHT = 480;
+	private static final int ENC_WIDTH = 1280 ;
+	private static final int ENC_HEIGHT = 960;
 	private static final int ENC_BITRATE = 6000000 ;
  
 	
@@ -502,15 +503,15 @@ public class CamRecbyOpenGL extends Activity {
 				mInputSurface.swapBuffers();// 这样编码器就有输入数据了
 				
 				
-				if(mSharedEGLContext != null){
-					EGL14.eglMakeCurrent(mSharedEGLDisplay, mSharedEGLSurfaceRd, mSharedEGLSurfaceWr, mSharedEGLContext);
-					mStManager.drawImage(); 
-					EGL14.eglSwapBuffers(mSharedEGLDisplay, mSharedEGLSurfaceWr);
-					
-					mInputSurface.makeCurrent(); 
-				}else{
-					
-				}
+//				if(mSharedEGLContext != null){
+//					EGL14.eglMakeCurrent(mSharedEGLDisplay, mSharedEGLSurfaceRd, mSharedEGLSurfaceWr, mSharedEGLContext);
+//					mStManager.drawImage(); 
+//					EGL14.eglSwapBuffers(mSharedEGLDisplay, mSharedEGLSurfaceWr);
+//					
+//					mInputSurface.makeCurrent(); 
+//				}else{
+//					
+//				}
 				
 			}
 
@@ -534,17 +535,21 @@ public class CamRecbyOpenGL extends Activity {
 			throw new RuntimeException("camera already initialized");
 		}
 
+		int cam_id = 0;
+		
 		Camera.CameraInfo info = new Camera.CameraInfo();
 
 		// Try to find a front-facing camera (e.g. for videoconferencing).
 		int numCameras = Camera.getNumberOfCameras();
 		for (int i = 0; i < numCameras; i++) {
 			Camera.getCameraInfo(i, info);
-			if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+			if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) { // CAMERA_FACING_FRONT  CAMERA_FACING_BACK
 				mCamera = Camera.open(i);
+				cam_id = i ;
 				break;
 			}
 		}
+		
 		if (mCamera == null) {
 			Log.d(TAG, "No front-facing camera found; opening default");
 			mCamera = Camera.open(); // opens first back-facing camera
@@ -559,11 +564,25 @@ public class CamRecbyOpenGL extends Activity {
 		
 		// set framerate to 15fps but record 30fps
 		parms.setPreviewFrameRate(15);
+		//parms.setPreviewSize(1280, 960);
 		
 		mCamera.setParameters(parms);
 
+		parms = mCamera.getParameters();
 		Camera.Size size = parms.getPreviewSize();
 		Log.d(TAG, "Camera preview size is " + size.width + "x" + size.height);
+		
+		//mCamera.setDisplayOrientation(180);
+		
+		/*
+		 * 前  orientation 270
+		 * 后  orientation 90
+		 */
+		android.hardware.Camera.CameraInfo cinfo =
+		            new android.hardware.Camera.CameraInfo();
+		android.hardware.Camera.getCameraInfo(cam_id , cinfo);
+		Log.d(TAG, "Camera orientation " + info.orientation );
+
 	}
 
 	/**
@@ -967,13 +986,20 @@ public class CamRecbyOpenGL extends Activity {
 		private static final int TRIANGLE_VERTICES_DATA_STRIDE_BYTES = 5 * FLOAT_SIZE_BYTES;
 		private static final int TRIANGLE_VERTICES_DATA_POS_OFFSET = 0;
 		private static final int TRIANGLE_VERTICES_DATA_UV_OFFSET = 3;
+//		private final float[] mTriangleVerticesData = {
+//				// X, Y, Z, U, V
+//				 -1.0f, -1.0f, 0,  		0.f, 0.f,  /*顶点坐标     纹理坐标*/
+//				 1.0f, -1.0f, 0,   		1.f, 0.f, 
+//				 -1.0f, 1.0f, 0,  		0.f, 1.f,
+//				  1.0f, 1.0f, 0,      	1.f, 1.f, };
+
 		private final float[] mTriangleVerticesData = {
 				// X, Y, Z, U, V
-				-1.0f, -1.0f, 0, 0.f, 0.f,  /*顶点坐标     纹理坐标*/
-				 1.0f, -1.0f, 0, 1.f, 0.f, 
-				 -1.0f, 1.0f, 0, 0.f, 1.f,
-				  1.0f, 1.0f, 0, 1.f, 1.f, };
-
+				-1.0f, 	1.0f, 	0, 		0.f, 0.f,  /*顶点坐标     纹理坐标*/
+				1.0f,	1.0f, 	0,		1.f, 0.f, 
+				-1.0f, 	-1.0f, 	0,		0.f, 1.f,
+				1.0f, 	-1.0f, 	0,		1.f, 1.f, };
+		
 		private FloatBuffer mTriangleVertices;
 
 		private static final String VERTEX_SHADER = 
@@ -984,7 +1010,9 @@ public class CamRecbyOpenGL extends Activity {
 				+ "varying vec2 vTextureCoord;\n"
 				+ "void main() {\n" 
 				+ "    gl_Position = uMVPMatrix * aPosition;\n"
-				+ "    vTextureCoord = (uSTMatrix * aTextureCoord).xy;\n" 
+				+ "    mat4 temp = uSTMatrix ;"
+				+ "    vTextureCoord = (aTextureCoord).xy;\n" 
+				//+ "    vTextureCoord = (uSTMatrix*aTextureCoord).xy;\n" 
 				+ "}\n";
 
 		private static final String FRAGMENT_SHADER = "#extension GL_OES_EGL_image_external : require\n"
@@ -1030,6 +1058,7 @@ public class CamRecbyOpenGL extends Activity {
 			 */
 			 
 			st.getTransformMatrix(mSTMatrix);
+			Log.d(TAG, "> " + Arrays.toString(mSTMatrix) );
 
 			// (optional) clear to green so we can see if we're failing to set
 			// pixels

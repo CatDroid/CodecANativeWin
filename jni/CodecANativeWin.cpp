@@ -2,6 +2,25 @@
 #include <jni.h>
 
 #include <android/native_window_jni.h> // ANativeWindow
+#include <android/native_window.h>
+/*
+ *  android/native_window.h
+ *
+ *	WINDOW_FORMAT_RGBA_8888          = 1,
+ *	WINDOW_FORMAT_RGBX_8888          = 2,
+ *	WINDOW_FORMAT_RGB_565            = 4,
+ *
+ *  跟 定义一样
+ * /system/core/include/system/graphics.h
+ *
+ * HAL_PIXEL_FORMAT_RGBA_8888          = 1,
+ * HAL_PIXEL_FORMAT_RGBX_8888          = 2,
+ * HAL_PIXEL_FORMAT_RGB_565            = 4,
+ * HAL_PIXEL_FORMAT_YV12   = 0x32315659, // YCrCb 4:2:0 Planar
+
+
+ *
+ * */
 
 #include <fcntl.h>
 #include <pthread.h>
@@ -14,9 +33,9 @@
 #define LOG_TAG "jni_nwc"
 #include "vortex.h"
 #define NWC_CLASS_PATH "com/tom/codecanativewin/jni/NativeWinCodec"
-#define SAVE_EXTRACT_H264_TO_FILE 0  //  mp4容器提取的视频 NAL 保存到文件中/mnt/sdcard/nativeCodec.h264
+#define SAVE_EXTRACT_H264_TO_FILE 1  //  mp4容器提取的视频 NAL 保存到文件中/mnt/sdcard/nativeCodec.h264
 #if SAVE_EXTRACT_H264_TO_FILE == 1
-#define EXTRACT_DST_FILE_NAME "/mnt/sdcard/PLConfig.h264"
+#define EXTRACT_DST_FILE_NAME "/mnt/sdcard/only1.h264"
 #endif
 #define SEARCH_OTHER_NAL_IN_SAMPLE 1 //  通过Extractor取出的一个sample中 可能包含多个NAL
 
