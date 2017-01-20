@@ -1,5 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 
+
 ##############################################################################
 include $(CLEAR_VARS)
 LOCAL_LDLIBS    := -llog -landroid -lmediandk
@@ -54,3 +55,18 @@ include $(BUILD_SHARED_LIBRARY)
 #include $(LOCAL_PATH)/tcp_udp/Android.mk
 include $(LOCAL_PATH)/openGL/Android.mk
 
+
+ 
+.PHONY: clean 
+clean:
+	echo "excute .PHONY: clean "
+	del /f/s/q tempdir	
+	for /d %%i in (c:\*) do echo %%i  
+	for /r jni  %%a in ("*.c","*.cpp") do echo %%a
+	for %%i in (for1 for2 for3) do echo %%i
+	
+
+# del /f/s/q tempdir 只会下面的文件 不包含本文件夹和下面的文件夹
+# 没有rm命令    所以要改用del
+# 没有for命令   所以变成了 windows上面的for %%a 不能用 %%abc %%temp 等多于一个字符的
+# 没有 cat --help 命令 
