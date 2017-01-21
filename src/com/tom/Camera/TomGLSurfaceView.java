@@ -1,6 +1,7 @@
 package com.tom.Camera;
 
 import java.io.IOException;
+import java.util.Arrays;
 
 import javax.microedition.khronos.egl.EGLConfig;
 import javax.microedition.khronos.opengles.GL10;
@@ -159,6 +160,7 @@ public class TomGLSurfaceView extends GLSurfaceView
         float[] mtx = new float[16];  
         mSurface.getTransformMatrix(mtx);  // 每次都查询 纹理坐标系矩阵 4x4
         mDirectDrawer.draw(mtx);  
+        Log.d(TAG,"mtx = " + Arrays.toString(mtx));
 	}
 
 	@Override

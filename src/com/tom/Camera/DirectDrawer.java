@@ -16,13 +16,16 @@ public class DirectDrawer {
 
 	private static final String TAG = "drawer";
 
-	private final String vertexShaderCode = "attribute vec4 vPosition;"
+	private final String vertexShaderCode = 
+			"attribute vec4 vPosition;"
 			+ "attribute vec2 inputTextureCoordinate;"
-			+ "varying vec2 textureCoordinate;" + "void main()" + "{"
+			+ "varying vec2 textureCoordinate;" + 
+			"void main()" + "{"
 			+ "gl_Position = vPosition;"
 			+ "textureCoordinate = inputTextureCoordinate;" + "}";
 
-	private final String fragmentShaderCode = "#extension GL_OES_EGL_image_external : require\n"
+	private final String fragmentShaderCode = 
+			"#extension GL_OES_EGL_image_external : require\n"
 			+ "precision mediump float;"
 			+ "varying vec2 textureCoordinate;\n"
 			+ "uniform samplerExternalOES s_texture;\n"
@@ -135,7 +138,7 @@ public class DirectDrawer {
 
 		mTextureCoordHandle = GLES20.glGetAttribLocation(mProgram,
 				"inputTextureCoordinate");
-		GLES20.glEnableVertexAttribArray(mTextureCoordHandle);
+		
 
 		// textureVerticesBuffer.clear();
 		// textureVerticesBuffer.put( transformTextureCoordinates(
@@ -143,6 +146,7 @@ public class DirectDrawer {
 		// textureVerticesBuffer.position(0);
 		GLES20.glVertexAttribPointer(mTextureCoordHandle, COORDS_PER_VERTEX,
 				GLES20.GL_FLOAT, false, vertexStride, textureVerticesBuffer);
+		GLES20.glEnableVertexAttribArray(mTextureCoordHandle);
 
 		GLES20.glDrawElements(GLES20.GL_TRIANGLES, drawOrder.length,
 				GLES20.GL_UNSIGNED_SHORT, drawListBuffer);

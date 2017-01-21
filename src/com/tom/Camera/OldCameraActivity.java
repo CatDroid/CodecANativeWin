@@ -162,7 +162,7 @@ public class OldCameraActivity extends Activity implements
 		int numCameras = Camera.getNumberOfCameras();
 		for (int i = 0; i < numCameras; i++) {
 			Camera.getCameraInfo(i, info);
-			if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+			if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {//CAMERA_FACING_BACK  CAMERA_FACING_FRONT
 				Log.d(TAG, "camera " + i + " " + " face front ! ");
 				mCamera = Camera.open(i);
 				break;
