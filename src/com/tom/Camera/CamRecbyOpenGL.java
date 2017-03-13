@@ -61,7 +61,8 @@ public class CamRecbyOpenGL extends Activity {
 	private static final long DURATION_SEC = 8; // 8 seconds of video
 	private static final int ENC_WIDTH = 1280 ;
 	private static final int ENC_HEIGHT = 960;
-	private static final int ENC_BITRATE = 6000000 ;
+	private static final int ENC_BITRATE = 4000000  ;
+	private static final int ENC_NEW_BITRATE = -1 ;
  
 	
 	// Fragment shader that swaps color channels around.
@@ -167,7 +168,8 @@ public class CamRecbyOpenGL extends Activity {
 	            	// 在这里跑一段时间   使用Camera MediaCodec Surface进行录像  
 	            	// 最后线程退出
 	            } catch (Throwable th) {
-	            
+	            	Log.e(TAG, "encodeCamera2mp4_thread exception" + th.getMessage() );
+	            	th.printStackTrace();
 	            }
         }
 	}
@@ -223,8 +225,11 @@ public class CamRecbyOpenGL extends Activity {
 	 * here.
 	 */
 	private void prepareSurfaceTexture() {
+		 
 		mStManager = new SurfaceTextureManager();
+		 
 		SurfaceTexture st = mStManager.getSurfaceTexture();
+		 
 		try {
 			mCamera.setPreviewTexture(st);
 		} catch (IOException ioe) {
@@ -280,7 +285,7 @@ public class CamRecbyOpenGL extends Activity {
 		format.setInteger(MediaFormat.KEY_BIT_RATE, bitRate);
 		format.setInteger(MediaFormat.KEY_FRAME_RATE, FRAME_RATE);
 		format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, IFRAME_INTERVAL);
-		Log.d(TAG, "format: " + format);
+		Log.d(TAG, "here format: " + format);
 		try {
 			mEncoder = MediaCodec.createEncoderByType(MIME_TYPE);
 		} catch (IOException e) {
@@ -290,8 +295,18 @@ public class CamRecbyOpenGL extends Activity {
 			e.printStackTrace();
 			return;
 		}
+		Log.d(TAG,"createEncoderByType");
 		mEncoder.configure(format, null, null, MediaCodec.CONFIGURE_FLAG_ENCODE);
 		Surface surface = mEncoder.createInputSurface();
+		Log.d(TAG,"createInputSurface 1 ");
+		
+		try{
+			Surface temp = mEncoder.createInputSurface();
+			Log.d(TAG, "duplicated called surface = " + surface + " temp = " + temp );
+		}catch ( android.media.MediaCodec.CodecException ex ){
+			Log.d(TAG, "duplicated called CodecException " );
+		}
+
 		mInputSurface = new CodecInputSurface(surface);
 		mEncoder.start();
 
@@ -299,7 +314,7 @@ public class CamRecbyOpenGL extends Activity {
 		// 创建一个MediaMuxer 但是不能在这里添加video track和 start()这个Muxer
 		// 只能在Encoder编码一定数据后 INFO_OUTPUT_FORMAT_CHANGED 的时候再添加video track和start()
 		// 我们只是把 raw H264 ES(elementary stream )保存到mp4 没有声音
-		String outputPath = new File(OUTPUT_DIR, "test." + width + "x" + height + ".mp4").toString();
+		String outputPath = new File(OUTPUT_DIR, "CamRecbyOpenGL_" + width + "x" + height + ".mp4").toString();
 		Log.i(TAG, "Output file is " + outputPath);
 		try {
 			mMuxer = new MediaMuxer(outputPath, MediaMuxer.OutputFormat.MUXER_OUTPUT_MPEG_4);
@@ -388,12 +403,15 @@ public class CamRecbyOpenGL extends Activity {
 					throw new RuntimeException("encoderOutputBuffer " + encoderStatus + " was null");
 				}
 
+				//测试 修改编码码率之后 pps sps是否提供新的: 目前MTK上使用没有问题 但是高通上使用有问题 sps和pps都没有提供新的
+				//Log.d(TAG, " encodedData type   " + Integer.toHexString( (int)encodedData.get(4) ) );
+				
 				if ((mBufferInfo.flags & MediaCodec.BUFFER_FLAG_CODEC_CONFIG) != 0) {
 					// The codec config data was pulled out and fed to the muxer
 					// when we got
 					// the INFO_OUTPUT_FORMAT_CHANGED status. Ignore it.
-					if (VERBOSE)
-						Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG");
+					//if (VERBOSE)
+					Log.d(TAG, "ignoring BUFFER_FLAG_CODEC_CONFIG ");
 					mBufferInfo.size = 0;
 				}
 
@@ -473,7 +491,18 @@ public class CamRecbyOpenGL extends Activity {
 						fragmentShader = SWAPPED_FRAGMENT_SHADER;
 					}
 					mStManager.changeFragmentShader(fragmentShader);
+					Log.d(TAG, "Fragment Change " );
 				}
+				
+	 
+				 
+				if( ( frameCount ==  15*4  && ENC_NEW_BITRATE != -1 ) ){
+					Bundle para = new Bundle();
+					para.putInt (MediaCodec.PARAMETER_KEY_VIDEO_BITRATE , ENC_NEW_BITRATE);
+					mEncoder.setParameters( para);
+					Log.d(TAG, "Codec Bitrate Change From " + ENC_BITRATE + " to " + ENC_NEW_BITRATE );
+				}
+				
 				frameCount++;
 
 				/**
@@ -1342,6 +1371,7 @@ public class CamRecbyOpenGL extends Activity {
 
 		public static void checkLocation(int location, String label) {
 			if (location < 0) {
+				Log.e(TAG, "Unable to locate '" + label + "' in program");
 				throw new RuntimeException("Unable to locate '" + label + "' in program");
 			}
 		}
