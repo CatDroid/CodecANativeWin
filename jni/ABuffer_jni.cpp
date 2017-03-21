@@ -26,6 +26,36 @@ JNIEXPORT void JNICALL  native_release( JNIEnv * env , jobject jobj , jlong ctx 
 }
 
 
+JNIEXPORT long JNICALL  native_malloc( JNIEnv * env , jclass jcls , jint size ) {
+	uint8_t* ptr = (uint8_t*)malloc(size);
+	memset(ptr, 1, size);
+	ALOGD("malloc ptr %p", ptr );
+	return (long)ptr;
+}
+
+JNIEXPORT void JNICALL  native_free( JNIEnv * env , jclass jcls , jlong buf ) {
+	uint8_t* ptr = (uint8_t*)buf;
+	ALOGD("free ptr %p", ptr );
+	free(ptr);
+	return ;
+}
+
+JNIEXPORT long JNICALL  native_new( JNIEnv * env , jclass jcls , jint size ) {
+	uint8_t* ptr =  new uint8_t[size] ;
+	memset(ptr, 2, size);
+	ALOGD("malloc ptr %p", ptr );
+	return (long)ptr;
+}
+
+JNIEXPORT void JNICALL  native_del( JNIEnv * env , jclass jcls , jlong buf ) {
+	uint8_t* ptr = (uint8_t*)buf;
+	ALOGD("free ptr %p", ptr );
+	delete[] ptr ;
+	return ;
+}
+
+
+
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 {
 	ALOGI("ABuffer_jni.cpp JNI_OnLoad");
@@ -43,8 +73,13 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 		ALOGD("Error Occured GetStaticMethodID !");
 	}
 
+
     JNINativeMethod method_table[] = {
+		{ "native_del", "(J)V", (void*)native_del },
+		{ "native_new", "(I)J", (void*)native_new },
     	{ "native_release", "(J)V", (void*)native_release },
+		{ "native_malloc", "(I)J", (void*)native_malloc },
+		{ "native_free", "(J)V", (void*)native_free },
     };
 	jniRegisterNativeMethods( env, JAVA_CLASS_PATH ,  method_table, NELEM(method_table)) ;
 

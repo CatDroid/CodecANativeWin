@@ -2,7 +2,7 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     package="com.tom.codecanativewin"
     android:versionCode="1"
-    android:versionName="1.0" >
+    android:versionName="1.0">
 
     <uses-sdk
         android:minSdkVersion="21"
@@ -15,15 +15,17 @@
     <uses-permission android:name="android.permission.RECORD_AUDIO" />
     <uses-permission android:name="android.permission.CAMERA" />
 
+    <android:uses-permission android:name="android.permission.READ_PHONE_STATE" />
+
     <application
         android:allowBackup="true"
         android:icon="@drawable/ic_launcher"
         android:label="@string/app_name"
-        android:theme="@style/AppTheme" >
+        android:theme="@style/AppTheme">
         <activity
             android:name="com.tom.entry.MainActivity"
             android:label="@string/app_name"
-            android:screenOrientation="portrait" >
+            android:screenOrientation="portrait">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
 
@@ -32,65 +34,48 @@
         </activity>
         <activity
             android:name=".NativeWinCodecActivity"
-            android:label="@string/title_activity_native_win_codec" >
-        </activity>
+            android:label="@string/title_activity_native_win_codec"></activity>
         <activity
             android:name="com.tom.Camera.CamRecbyOpenGL"
-            android:label="@string/title_activity_camera" >
-        </activity>
+            android:label="@string/title_activity_camera"></activity>
         <activity
             android:name=".De2FileAndEn2FileActivity"
-            android:label="@string/title_activity_de2_file_and_en2_file" >
-        </activity>
+            android:label="@string/title_activity_de2_file_and_en2_file"></activity>
         <activity
             android:name=".MediaPlayerActivity"
-            android:label="@string/title_activity_media_player" >
-        </activity>
+            android:label="@string/title_activity_media_player"></activity>
         <activity
             android:name=".DisplayH264Activity"
             android:label="@string/title_activity_display_h264"
-            android:screenOrientation="portrait" >
-        </activity>
+            android:screenOrientation="portrait"></activity>
         <activity
             android:name=".AudioDecActivity"
-            android:label="@string/title_activity_audio_dec" >
-        </activity>
+            android:label="@string/title_activity_audio_dec"></activity>
         <activity
             android:name=".ByteBufferActivity"
-            android:label="@string/title_activity_byte_buffer" >
-        </activity>
+            android:label="@string/title_activity_byte_buffer"></activity>
         <activity
             android:name=".RtspPlayerActivity"
-            android:label="@string/title_activity_rtsp_player" >
-        </activity>
+            android:label="@string/title_activity_rtsp_player"></activity>
         <activity
             android:name="com.tom.Camera.NewCameraActivity"
-            android:label="@string/title_activity_new_camera" >
-        </activity>
+            android:label="@string/title_activity_new_camera"></activity>
         <activity
             android:name="com.tom.Camera.OldCameraActivity"
-            android:label="@string/title_activity_new_camera" >
-        </activity>
+            android:label="@string/title_activity_new_camera"></activity>
         <activity
             android:name=".FormatActivity"
-            android:label="@string/title_activity_format" >
-        </activity>
-        
-     	<activity
+            android:label="@string/title_activity_format"></activity>
+        <activity
             android:name="com.tom.opengl.three.DecodeYUVGLActivity"
-            android:label="@string/title_activity_decodeyuvgl" >
-        </activity>
-       
+            android:label="@string/title_activity_decodeyuvgl"></activity>
         <activity
             android:name="com.tom.opengl.two.TextureUV2RGBActivity"
-            android:label="@string/title_activity_texture2gl" >
-        </activity> 
-              
+            android:label="@string/title_activity_texture2gl"></activity>
         <activity
             android:name="com.tom.opengl.one.Texture1RGBActivity"
-            android:label="@string/title_activity_texture1gl" >
-        </activity>  
-        
+            android:label="@string/title_activity_texture1gl"></activity>
+        <activity android:name=".NativeHeapActivity"></activity>
     </application>
 
 </manifest>
