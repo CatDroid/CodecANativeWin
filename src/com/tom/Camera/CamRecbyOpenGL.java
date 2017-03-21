@@ -41,6 +41,7 @@ import android.opengl.EGLSurface;
 import android.opengl.GLES11Ext;
 import android.opengl.GLES20;
 import android.opengl.Matrix;
+import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.SurfaceTexture;
 
@@ -439,7 +440,24 @@ public class CamRecbyOpenGL extends Activity {
 		Log.d(TAG, MIME_TYPE + " output " + ENC_WIDTH 
 				+ "x" + ENC_HEIGHT + " @" + ENC_BITRATE);
 
+		try{
+			
 		
+		Bitmap bmp =BitmapFactory.decodeFile("/mnt/sdcard/test_memory.bmp");
+		int color = bmp.getPixel(0, 0);
+		Log.d("TOM" , "(0,0) " + Integer.toHexString(color )
+				+ " (0,640) " + Integer.toHexString( bmp.getPixel(640 - 1  ,0 ) ) );
+		
+		int[] pixels = new int[640*480];
+		Log.d("TOM" , "new done " );
+		bmp.getPixels(pixels, 0, 640, 0, 0, 640, 480);
+		Log.d("TOM" , "getPixels done " );
+		Log.d("TOM", "first memory " +  Integer.toHexString(pixels[0]) + " (640,0) = " +  Integer.toHexString(pixels[640 - 1 ]));
+		
+		}catch(Exception ex){
+			ex.printStackTrace();
+			return ;
+		}
 		try {
 			
 			prepareCamera(ENC_WIDTH, ENC_HEIGHT);
@@ -543,8 +561,8 @@ public class CamRecbyOpenGL extends Activity {
 		int numCameras = Camera.getNumberOfCameras();
 		for (int i = 0; i < numCameras; i++) {
 			Camera.getCameraInfo(i, info);
-			if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) { // CAMERA_FACING_FRONT  CAMERA_FACING_BACK
-				mCamera = Camera.open(i);
+			if (info.facing == Camera.CameraInfo.CAMERA_FACING_BACK) { // CAMERA_FACING_FRONT  CAMERA_FACING_BACK
+				mCamera = Camera.open(i); 
 				cam_id = i ;
 				break;
 			}
@@ -571,8 +589,20 @@ public class CamRecbyOpenGL extends Activity {
 		parms = mCamera.getParameters();
 		Camera.Size size = parms.getPreviewSize();
 		Log.d(TAG, "Camera preview size is " + size.width + "x" + size.height);
+		Log.d(TAG, "Camera PreviewFormat " + parms.getPreviewFormat() ); 
+		// Camera PreviewFormat 17   = ImageFormat.NV21
 		
-		//mCamera.setDisplayOrientation(180);
+		try{
+			//mCamera.setDisplayOrientation(0);	
+			setCameraDisplayOrientation(this ,cam_id,mCamera);
+		}catch(Exception ex ){
+			Log.e("TOM" , "setDisplayOrientation fail" + ex.getMessage());
+			ex.printStackTrace();
+			return ;
+		}
+		
+		
+		
 		
 		/*
 		 * 前  orientation 270
@@ -582,8 +612,39 @@ public class CamRecbyOpenGL extends Activity {
 		            new android.hardware.Camera.CameraInfo();
 		android.hardware.Camera.getCameraInfo(cam_id , cinfo);
 		Log.d(TAG, "Camera orientation " + info.orientation );
-
+		 
 	}
+	
+	
+	 public static void setCameraDisplayOrientation(Activity activity,
+	         int cameraId, android.hardware.Camera camera) {
+	     android.hardware.Camera.CameraInfo info =
+	             new android.hardware.Camera.CameraInfo();
+	     android.hardware.Camera.getCameraInfo(cameraId, info);
+	     int rotation = activity.getWindowManager().getDefaultDisplay()
+	             .getRotation();
+	     int degrees = 0;
+	     switch (rotation) {
+	         case Surface.ROTATION_0: degrees = 0; break;
+	         case Surface.ROTATION_90: degrees = 90; break;
+	         case Surface.ROTATION_180: degrees = 180; break;
+	         case Surface.ROTATION_270: degrees = 270; break;
+	     }
+	     Log.d("TOM","windows rotation " + rotation + " degrees = " + degrees );
+
+	     int result;
+	     if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) {
+	         result = (info.orientation + degrees) % 360;
+	         result = (360 - result) % 360;  // compensate the mirror
+	     } else {  // back-facing
+	         result = (info.orientation - degrees + 360) % 360;
+	     }
+	     Log.d("TOM","camera facing " + info.facing  + " camera orientation = " + info.orientation
+	    		 + " setDisplayOrientation " + result );
+	     
+	     camera.setDisplayOrientation(result);
+	 }
+
 
 	/**
 	 * Holds state associated with a Surface used for MediaCodec encoder input.
@@ -993,13 +1054,24 @@ public class CamRecbyOpenGL extends Activity {
 //				 -1.0f, 1.0f, 0,  		0.f, 1.f,
 //				  1.0f, 1.0f, 0,      	1.f, 1.f, };
 
-		private final float[] mTriangleVerticesData = {
-				// X, Y, Z, U, V
-				-1.0f, 	1.0f, 	0, 		0.f, 0.f,  /*顶点坐标     纹理坐标*/
-				1.0f,	1.0f, 	0,		1.f, 0.f, 
-				-1.0f, 	-1.0f, 	0,		0.f, 1.f,
-				1.0f, 	-1.0f, 	0,		1.f, 1.f, };
+		// 如果是照片的话 要这样对应
+//		private final float[] mTriangleVerticesData = {
+//				// X, Y, Z, U, V
+//				-1.0f, 	1.0f, 	0, 		0.f, 0.f,  /*顶点坐标     纹理坐标*/
+//				1.0f,	1.0f, 	0,		1.f, 0.f, 
+//				-1.0f, 	-1.0f, 	0,		0.f, 1.f,
+//				1.0f, 	-1.0f, 	0,		1.f, 1.f, 
+//				};
 		
+		// 如果是摄像头预览的话 , 要这样对应 (同样顶点坐标 纹理坐标Y轴 0-1调换)
+		private final float[] mTriangleVerticesData = {
+			// X, Y, Z, U, V
+				-1.0f, -1.0f, 0,		0.f, 0.f,
+				1.0f, -1.0f, 0, 		1.f, 0.f,
+				-1.0f, 1.0f, 0, 		0.f, 1.f,
+				1.0f, 1.0f, 0, 			1.f, 1.f,
+			};
+		 
 		private FloatBuffer mTriangleVertices;
 
 		private static final String VERTEX_SHADER = 
@@ -1010,9 +1082,9 @@ public class CamRecbyOpenGL extends Activity {
 				+ "varying vec2 vTextureCoord;\n"
 				+ "void main() {\n" 
 				+ "    gl_Position = uMVPMatrix * aPosition;\n"
-				+ "    mat4 temp = uSTMatrix ;"
-				+ "    vTextureCoord = (aTextureCoord).xy;\n" 
-				//+ "    vTextureCoord = (uSTMatrix*aTextureCoord).xy;\n" 
+				//+ "    mat4 temp = uSTMatrix ;"
+				//+ "    vTextureCoord = (aTextureCoord).xy;\n" 
+				+ "    vTextureCoord = (uSTMatrix*aTextureCoord).xy;\n" 
 				+ "}\n";
 
 		private static final String FRAGMENT_SHADER = "#extension GL_OES_EGL_image_external : require\n"
