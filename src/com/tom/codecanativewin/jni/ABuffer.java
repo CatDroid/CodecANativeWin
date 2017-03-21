@@ -25,7 +25,13 @@ public class ABuffer {
 	public int mActualSize ;
 	public ByteBuffer mData ;
 
-	
+
+	public static native long native_malloc(int size);
+	public static native void native_free(long ptr);
+
+	public static native long native_new(int size);
+	public static native void native_del(long ptr);
+
 	public void release(){
 		native_release(mSelf);
 		mSelf = 0 ;

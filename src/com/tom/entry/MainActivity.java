@@ -15,6 +15,7 @@ import com.tom.codecanativewin.De2FileAndEn2FileActivity;
 import com.tom.codecanativewin.DisplayH264Activity;
 import com.tom.codecanativewin.FormatActivity;
 import com.tom.codecanativewin.MediaPlayerActivity;
+import com.tom.codecanativewin.NativeHeapActivity;
 import com.tom.codecanativewin.NativeWinCodecActivity;
 import com.tom.codecanativewin.R;
 import com.tom.codecanativewin.RtspPlayerActivity;
@@ -149,7 +150,12 @@ public class MainActivity extends Activity {
 			start = new Intent(MainActivity.this, Texture1RGBActivity.class);
 			this.startActivity(start);
 			this.finish();	
-			break;			
+			break;
+		case R.id.bNativeHeap:
+			start = new Intent(MainActivity.this, NativeHeapActivity.class);
+			this.startActivity(start);
+			this.finish();
+			break;
 		default:
 			Log.d(TAG, "unknown Btn");
 			break;
