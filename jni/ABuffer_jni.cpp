@@ -69,8 +69,8 @@ JNIEXPORT jlong JNICALL  native_new_byteArray( JNIEnv * env , jclass jcls , jbyt
 	jboolean  copy = JNI_TRUE;
 	jsize length = env->GetArrayLength(array);
 	buffer = (int8_t*)env->GetByteArrayElements(array, &copy);
-	ALOGD("newByteArray length %d , buffer %p, copy %s ", length, buffer, copy?"true":"false");
-
+	ALOGD("newByteArray length %d , buffer %p, copy %s ", length, buffer, (copy==JNI_TRUE?"true":"false") );
+	*(buffer+5) = (int8_t)0x87;
 	JNIDataCallBack* cbCtx = new JNIDataCallBack();
 	cbCtx->data = buffer;
 	//cbCtx->jbytearray_ref = array; // 如果Java层没有强引用 这里GC就会释放!

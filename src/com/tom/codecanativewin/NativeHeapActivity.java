@@ -101,7 +101,7 @@ public class NativeHeapActivity extends Activity {
                 byte[] temp = new byte[1024*1024];
                 Long ptr = ABuffer.native_new_byteArray(temp);
                 mByteArrayPtrs.add(ptr);
-                Log.d(TAG,"new  ptr = " + Long.toHexString( ptr ) );
+                Log.d(TAG,"new  ptr = " + Long.toHexString( ptr ) + " byte[5] = "+ Integer.toHexString( 0x000000FF & temp[5] ) );
             }
         });
 
