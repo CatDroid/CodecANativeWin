@@ -54,6 +54,42 @@ JNIEXPORT void JNICALL  native_del( JNIEnv * env , jclass jcls , jlong buf ) {
 	return ;
 }
 
+class JNIDataCallBack
+{
+public:
+	jobject jbytearray_ref;
+	jbyte* data ;
+};
+
+
+
+JNIEXPORT jlong JNICALL  native_new_byteArray( JNIEnv * env , jclass jcls , jbyteArray array ) {
+
+	int8_t* buffer = NULL;
+	jboolean  copy = JNI_TRUE;
+	jsize length = env->GetArrayLength(array);
+	buffer = (int8_t*)env->GetByteArrayElements(array, &copy);
+	ALOGD("newByteArray length %d , buffer %p, copy %s ", length, buffer, copy?"true":"false");
+
+	JNIDataCallBack* cbCtx = new JNIDataCallBack();
+	cbCtx->data = buffer;
+	//cbCtx->jbytearray_ref = array; // 如果Java层没有强引用 这里GC就会释放!
+	cbCtx->jbytearray_ref = env->NewGlobalRef(array);
+	return (jlong)cbCtx;
+}
+
+JNIEXPORT void JNICALL  native_del_byteArray( JNIEnv * env , jclass jcls , jlong ctx ) {
+
+	JNIDataCallBack* cbCtx = (JNIDataCallBack*) ctx;
+	env->ReleaseByteArrayElements((jbyteArray)cbCtx->jbytearray_ref, (jbyte*)cbCtx->data, JNI_ABORT);
+	env->DeleteGlobalRef( cbCtx->jbytearray_ref );
+	//env->DeleteLocalRef(cbCtx->jbytearray_ref);
+	delete cbCtx;
+	return ;
+}
+
+
+
 
 
 JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
@@ -80,6 +116,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
     	{ "native_release", "(J)V", (void*)native_release },
 		{ "native_malloc", "(I)J", (void*)native_malloc },
 		{ "native_free", "(J)V", (void*)native_free },
+		{ "native_new_byteArray", "([B)J", (void*)native_new_byteArray },
+		{ "native_del_byteArray", "(J)V", (void*)native_del_byteArray },
     };
 	jniRegisterNativeMethods( env, JAVA_CLASS_PATH ,  method_table, NELEM(method_table)) ;
 

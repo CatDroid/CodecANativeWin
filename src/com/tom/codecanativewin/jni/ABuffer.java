@@ -32,6 +32,9 @@ public class ABuffer {
 	public static native long native_new(int size);
 	public static native void native_del(long ptr);
 
+	public static native long native_new_byteArray(byte[] array);
+	public static native void native_del_byteArray(long ptr);
+
 	public void release(){
 		native_release(mSelf);
 		mSelf = 0 ;

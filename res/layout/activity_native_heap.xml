@@ -46,4 +46,21 @@
         android:id="@+id/bNew"
         android:layout_below="@+id/bMalloc"
         android:layout_alignStart="@+id/bMalloc" />
+
+    <Button
+        android:text="~ByteArr"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/bNewByteArray"
+        android:layout_alignEnd="@+id/bDel"
+        android:id="@+id/bDelByteArray" />
+
+    <Button
+        android:text="ByteArr"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="32dp"
+        android:id="@+id/bNewByteArray"
+        android:layout_below="@+id/bNew"
+        android:layout_alignStart="@+id/bNew" />
 </RelativeLayout>

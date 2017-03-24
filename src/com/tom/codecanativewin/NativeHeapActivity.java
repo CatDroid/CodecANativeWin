@@ -30,6 +30,12 @@ public class NativeHeapActivity extends Activity {
     private Button mNewBtn = null;
     private ArrayList<Long> mNewPtrs = new ArrayList<Long>();
 
+
+    private Button mNewByteArrayBtn = null;
+    private Button mDelByteArrayBtn = null;
+    private ArrayList<Long> mByteArrayPtrs = new ArrayList<Long>();
+
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -86,6 +92,44 @@ public class NativeHeapActivity extends Activity {
                 }
             }
         });
+
+
+        mNewByteArrayBtn = (Button)findViewById(R.id.bNewByteArray);
+        mNewByteArrayBtn.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                byte[] temp = new byte[1024*1024];
+                Long ptr = ABuffer.native_new_byteArray(temp);
+                mByteArrayPtrs.add(ptr);
+                Log.d(TAG,"new  ptr = " + Long.toHexString( ptr ) );
+            }
+        });
+
+
+        mDelByteArrayBtn = (Button)findViewById(R.id.bDelByteArray);
+        mDelByteArrayBtn.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                if( mByteArrayPtrs.size() == 0){
+                    Toast.makeText(NativeHeapActivity.this,"New缓冲队列已经清空", Toast.LENGTH_LONG).show();
+                }else{
+                    final Long ptr = mByteArrayPtrs.remove(0);
+//                    ABuffer.native_del_byteArray(ptr);
+//                    Log.d(TAG, "del ptr = " + Long.toHexString( ptr ) );
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ABuffer.native_del_byteArray(ptr);
+                            Log.d(TAG, "del ptr = " + Long.toHexString( ptr ) );
+                        }
+                    }).start();
+
+
+                }
+            }
+        });
+
+
 
     }
 }
