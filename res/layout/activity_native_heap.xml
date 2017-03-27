@@ -63,4 +63,5 @@
         android:id="@+id/bNewByteArray"
         android:layout_below="@+id/bNew"
         android:layout_alignStart="@+id/bNew" />
+
 </RelativeLayout>
