@@ -64,4 +64,21 @@
         android:layout_below="@+id/bNew"
         android:layout_alignStart="@+id/bNew" />
 
+    <Button
+        android:text="Bitmap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_below="@+id/bNewByteArray"
+        android:layout_alignStart="@+id/bNewByteArray"
+        android:layout_marginTop="22dp"
+        android:id="@+id/bNewBitmap" />
+
+    <Button
+        android:text="~Bitmap"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_alignTop="@+id/bNewBitmap"
+        android:layout_alignEnd="@+id/bDelByteArray"
+        android:id="@+id/bDelBitmap" />
+
 </RelativeLayout>

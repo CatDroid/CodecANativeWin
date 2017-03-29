@@ -2,6 +2,8 @@ package com.tom.codecanativewin;
 
 
 import android.app.Activity;
+import android.graphics.Bitmap;
+import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
@@ -10,6 +12,9 @@ import android.widget.Toast;
 
 import com.tom.codecanativewin.jni.ABuffer;
 
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 
 public class NativeHeapActivity extends Activity {
@@ -36,6 +41,10 @@ public class NativeHeapActivity extends Activity {
     private ArrayList<Long> mByteArrayPtrs = new ArrayList<Long>();
 
 
+    private Button mNewBitmapBtn = null;
+    private Button mDelBitmapBtn = null;
+    private ArrayList<Long> mBitmapPtrs = new ArrayList<Long>();
+    private final String BITMAP_URL = "/mnt/sdcard/test.jpg" ;
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -128,6 +137,57 @@ public class NativeHeapActivity extends Activity {
                 }
             }
         });
+
+
+
+        mNewBitmapBtn = (Button)findViewById(R.id.bNewBitmap);
+        mNewBitmapBtn.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+            File file = new File(BITMAP_URL);
+            if( ! file.exists() ) {
+                Toast.makeText(getApplicationContext(),BITMAP_URL+" 不存在", Toast.LENGTH_LONG).show();
+                return ;
+            }
+            try{
+                InputStream inputStream = new FileInputStream(BITMAP_URL);
+                BitmapFactory.Options options = new BitmapFactory.Options();
+                options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+                Bitmap bmp = BitmapFactory.decodeStream(inputStream, null, options);
+                Long ptr = ABuffer.native_new_Bitmap( bmp);
+                mBitmapPtrs.add(ptr);
+                bmp.recycle();
+                bmp = null;
+            }catch (Exception ex ){
+                Log.e(TAG, "Exception ex = " + ex.getMessage() );
+                ex.printStackTrace();
+            }
+            }
+        });
+
+
+        mDelBitmapBtn = (Button)findViewById(R.id.bDelBitmap);
+        mDelBitmapBtn.setOnClickListener(new View.OnClickListener(){
+            @Override
+            public void onClick(View v) {
+                if( mBitmapPtrs.size() == 0){
+                    Toast.makeText(NativeHeapActivity.this,"New缓冲队列已经清空", Toast.LENGTH_LONG).show();
+                }else{
+                    final Long ptr = mBitmapPtrs.remove(0);
+                    new Thread(new Runnable() {
+                        @Override
+                        public void run() {
+                            ABuffer.native_del_Bitmap(ptr);
+                            Log.d(TAG, "del ptr = " + Long.toHexString( ptr ) );
+                        }
+                    }).start();
+
+
+                }
+            }
+        });
+
+
 
 
 

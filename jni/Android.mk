@@ -13,7 +13,7 @@ include $(BUILD_SHARED_LIBRARY)
 
 ##############################################################################
 include $(CLEAR_VARS)
-LOCAL_LDLIBS    := -llog -landroid -lmediandk -Wall 
+LOCAL_LDLIBS    := -llog -landroid -lmediandk -Wall -ljnigraphics
 LOCAL_MODULE    := Abuffer
 LOCAL_SRC_FILES := ABuffer_jni.cpp
 LOCAL_CFLAGS	+= -Wunused-variable -UNDEBUG

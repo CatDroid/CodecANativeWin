@@ -6,6 +6,7 @@
  */
 
 #include <assert.h>
+#include <android/bitmap.h>
 #include "jni.h"
 #define LOG_TAG "jni_abuffer"
 #include "vortex.h"
@@ -98,6 +99,73 @@ JNIEXPORT void JNICALL  native_del_byteArray( JNIEnv * env , jclass jcls , jlong
 }
 
 
+class JNIBitmapCallBack
+{
+public:
+	jobject jbitmap_ref;
+	uint8_t* bmp_data ;
+	uint32_t bmp_size ;
+};
+JNIEXPORT jlong JNICALL native_new_Bitmap( JNIEnv * env , jclass jcls , jobject jbitmap ) {
+
+	AndroidBitmapInfo info ;
+	int ret = AndroidBitmap_getInfo(env, jbitmap, &info);
+	if( ret != ANDROID_BITMAP_RESUT_SUCCESS){
+		ALOGE( "AndroidBitmap_getInfo fail");
+		return 0;
+	}
+	ALOGD( "native_new_Bitmap format[0x%x] width[%d] height[%d] flags[0x%x] stride[%d]" ,
+		       info.format , info.width , info.height , info.flags , info.stride );
+
+	if(info.format != ANDROID_BITMAP_FORMAT_RGBA_8888 /*1*/ && info.format != ANDROID_BITMAP_FORMAT_RGB_565 /*4*/){
+		ALOGE("native_new_Bitmap format not support info.format=%d " , info.format);
+		return 0;
+	}
+	if(info.width * info.height < 5 ){
+		ALOGE("pic too small ");
+		return 0 ;
+	}
+	uint8_t* cdata = NULL ;
+	ret = AndroidBitmap_lockPixels(env, jbitmap, (void**)&cdata  );
+	if( ret != ANDROID_BITMAP_RESUT_SUCCESS || cdata == NULL){
+		ALOGE("pushNewBitmap AndroidBitmap_lockPixels fail ret = %d cdata = %p " , ret , cdata);
+		return 0;
+	}
+
+
+	JNIBitmapCallBack* cbCtx = new JNIBitmapCallBack();
+	cbCtx->jbitmap_ref = env->NewGlobalRef( jbitmap ) ;
+	cbCtx->bmp_data = cdata ;
+	cbCtx->bmp_size =  info.width * info.height * (info.format == ANDROID_BITMAP_FORMAT_RGBA_8888?4:2) ;
+	ALOGD("add %p [0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]", (void*)cbCtx,
+		  cbCtx->bmp_data[ 0 ], cbCtx->bmp_data[ 1 ], cbCtx->bmp_data[ 2 ], cbCtx->bmp_data[ 3 ], cbCtx->bmp_data[ 4 ]  ,
+		  cbCtx->bmp_data[ 5 ], cbCtx->bmp_data[ 6 ], cbCtx->bmp_data[ 7 ], cbCtx->bmp_data[ 8 ], cbCtx->bmp_data[ 9 ] );
+
+	return (jlong)cbCtx;
+}
+
+JNIEXPORT void JNICALL  native_del_Bitmap( JNIEnv * env , jclass jcls , jlong ctx ) {
+	JNIBitmapCallBack* cbCtx = (JNIBitmapCallBack*) ctx;
+	// 随机内存访问
+	if( (void*)ctx == 0 ){
+		ALOGE("native_del_Bitmap ctx %p " , (void*)ctx );
+		return ;
+	}
+
+ 	ALOGD("del %p [0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x 0x%x]", (void*)cbCtx,
+		  cbCtx->bmp_data[ 0 ], cbCtx->bmp_data[ 1 ], cbCtx->bmp_data[ 2 ], cbCtx->bmp_data[ 3 ], cbCtx->bmp_data[ 4 ]  ,
+		  cbCtx->bmp_data[ 5 ], cbCtx->bmp_data[ 6 ], cbCtx->bmp_data[ 7 ], cbCtx->bmp_data[ 8 ], cbCtx->bmp_data[ 9 ] );
+
+	for( int i = cbCtx->bmp_size - 10 ; i < cbCtx->bmp_size ; i ++ ){
+		cbCtx->bmp_data[ i ] = 0xFF;
+	}
+	ALOGD("del done");
+
+	AndroidBitmap_unlockPixels(env,  cbCtx->jbitmap_ref );
+	env->DeleteGlobalRef( cbCtx->jbitmap_ref );
+	delete cbCtx;
+	return ;
+}
 
 
 
@@ -119,7 +187,7 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 	}
 
 
-    JNINativeMethod method_table[] = {
+	JNINativeMethod method_table[] = {
 		{ "native_del", "(J)V", (void*)native_del },
 		{ "native_new", "(I)J", (void*)native_new },
     	{ "native_release", "(J)V", (void*)native_release },
@@ -127,6 +195,8 @@ JNIEXPORT jint JNICALL JNI_OnLoad(JavaVM* vm, void* reserved)
 		{ "native_free", "(J)V", (void*)native_free },
 		{ "native_new_byteArray", "([B)J", (void*)native_new_byteArray },
 		{ "native_del_byteArray", "(J)V", (void*)native_del_byteArray },
+		{ "native_new_Bitmap", "(Ljava/lang/Object;)J", (void*)native_new_Bitmap },
+		{ "native_del_Bitmap", "(J)V", (void*)native_del_Bitmap },
     };
 	jniRegisterNativeMethods( env, JAVA_CLASS_PATH ,  method_table, NELEM(method_table)) ;
 
