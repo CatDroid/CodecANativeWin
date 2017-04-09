@@ -16,7 +16,7 @@ include $(CLEAR_VARS)
 LOCAL_LDLIBS    := -llog -landroid -lmediandk -Wall 
 LOCAL_MODULE    := Abuffer
 LOCAL_SRC_FILES := ABuffer_jni.cpp
-LOCAL_CFLAGS	+= -Wunused-variable
+LOCAL_CFLAGS	+= -Wunused-variable -UNDEBUG
 # LOCAL_CFLAGS 同样适用于C++ C源文件
 LOCAL_SHARED_LIBRARIES := libCommon
 include $(BUILD_SHARED_LIBRARY)

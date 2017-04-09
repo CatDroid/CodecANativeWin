@@ -5,6 +5,7 @@
  *      Author: hanlon
  */
 
+#include <assert.h>
 #include "jni.h"
 #define LOG_TAG "jni_abuffer"
 #include "vortex.h"
@@ -64,6 +65,14 @@ public:
 
 
 JNIEXPORT jlong JNICALL  native_new_byteArray( JNIEnv * env , jclass jcls , jbyteArray array ) {
+
+//Android.mk LOCAL_CFLAGS	+=   -UNDEBUG
+#ifdef NDEBUG
+#error "Oops, NDEBUG is defined"
+#endif
+
+//   assert(false);
+// assert(true);
 
 	int8_t* buffer = NULL;
 	jboolean  copy = JNI_TRUE;
