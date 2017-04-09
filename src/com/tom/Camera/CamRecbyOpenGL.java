@@ -590,7 +590,7 @@ public class CamRecbyOpenGL extends Activity {
 		int numCameras = Camera.getNumberOfCameras();
 		for (int i = 0; i < numCameras; i++) {
 			Camera.getCameraInfo(i, info);
-			if (info.facing == Camera.CameraInfo.CAMERA_FACING_BACK) { // CAMERA_FACING_FRONT  CAMERA_FACING_BACK
+			if (info.facing == Camera.CameraInfo.CAMERA_FACING_FRONT) { // CAMERA_FACING_FRONT  CAMERA_FACING_BACK
 				mCamera = Camera.open(i); 
 				cam_id = i ;
 				break;
@@ -1160,6 +1160,9 @@ public class CamRecbyOpenGL extends Activity {
 			 
 			st.getTransformMatrix(mSTMatrix);
 			Log.d(TAG, "> " + Arrays.toString(mSTMatrix) );
+
+			// 忽略纹理转换坐标
+			//Matrix.setIdentityM(mSTMatrix, 0);
 
 			// (optional) clear to green so we can see if we're failing to set
 			// pixels
