@@ -32,14 +32,19 @@
 #define VIDEO_CODEC   "video/hevc"
 //#define VIDEO_WIDTH   1280
 //#define VIDEO_HEIGHT  960
-#define VIDEO_WIDTH   1920
-#define VIDEO_HEIGHT  1080
-#define VIDEO_CONTROL_INTERVAL 100 * 1000 // fps  usleep  AMediaCodec_dequeueInputBuffer
+//#define VIDEO_WIDTH   1920
+//#define VIDEO_HEIGHT  1080
+#define VIDEO_WIDTH   3840
+#define VIDEO_HEIGHT  2176
+
+
+#define VIDEO_CONTROL_INTERVAL 10 * 1000 // fps  usleep  AMediaCodec_dequeueInputBuffer
 
 // 不用上层提供的文件路径
 //#define TEST_H264_FILE "/mnt/sdcard/vr.hevc"      // 1280x960
-#define TEST_H264_FILE "/mnt/sdcard/h265.hevc"    // 1920x1080
+//#define TEST_H264_FILE "/mnt/sdcard/h265.hevc"    // 1920x1080
 //#define TEST_H264_FILE "/mnt/sdcard/vr.havc"      // 1280x960
+#define TEST_H264_FILE "/mnt/sdcard/vr4k2k.hevc"      // 3840x2176
 
 // 如果文件中有sps pps vps信息 就不用上层传进来的
 #define H264_FILE_HAS_SPS_PPS_VPS 1
