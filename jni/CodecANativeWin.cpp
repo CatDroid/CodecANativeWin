@@ -35,7 +35,9 @@
 #define NWC_CLASS_PATH "com/tom/codecanativewin/jni/NativeWinCodec"
 #define SAVE_EXTRACT_H264_TO_FILE 1  //  mp4容器提取的视频 NAL 保存到文件中/mnt/sdcard/nativeCodec.h264
 #if SAVE_EXTRACT_H264_TO_FILE == 1
-#define EXTRACT_DST_FILE_NAME "/mnt/sdcard/only1.h264"
+#define EXTRACT_DST_FILE_NAME "/mnt/sdcard/h265.hevc"
+// 覆盖上层传递的文件路径
+#define EXTRACT_SRC_FILE_NAME "/mnt/sdcard/transformatH265--AAC_1080p30fp.mp4"
 #endif
 #define SEARCH_OTHER_NAL_IN_SAMPLE 1 //  通过Extractor取出的一个sample中 可能包含多个NAL
 
@@ -156,6 +158,14 @@ static void* playback_thread(void* argv)
 	NativeNWC* nwc = (NativeNWC*)argv;
 	AttachDetachThread2JVM(nwc->jvm ,true,&nwc->jenv );
 
+#if SAVE_EXTRACT_H264_TO_FILE
+    int fd = -1 ;
+    fd = open( EXTRACT_DST_FILE_NAME ,O_CREAT | O_WRONLY | O_TRUNC );
+    if( fd < 0 ) {
+        ALOGE("native Codec H264 file open error %d , %s  " , fd , strerror(errno));
+    }
+#endif
+
 	{
 		jstring post_event =  nwc->jenv->NewStringUTF("thread get started");
 		nwc->jenv->CallVoidMethod(nwc->java_obj_ref, g_cnw_java_fields.post_event, THREAD_STARTED , post_event );
@@ -220,8 +230,17 @@ static void* playback_thread(void* argv)
 				//  ACC 也有类似参数 在  csd-0:data
 				unsigned char * sps = NULL ; size_t sps_length = 0;
 				unsigned char * pps = NULL;  size_t pps_length = 0;
-				AMediaFormat_getBuffer(format, "csd-0",(void**)&sps , &sps_length);
+				AMediaFormat_getBuffer(format, "csd-0",(void**)&sps , &sps_length); // HEVC/H265 只有csd-0 (包含了sps pps vps )
 				AMediaFormat_getBuffer(format, "csd-1",(void**)&pps , &pps_length);
+
+#if SAVE_EXTRACT_H264_TO_FILE
+                if(sps != NULL){
+                    write(fd, sps , sps_length);
+                }
+                if(pps != NULL){
+                    write(fd, pps , pps_length);
+                }
+#endif
 				unsigned char* pBuffer = (unsigned char*)malloc( sps_length*5 + pps_length*5 + sps_length/4 +  pps_length/4  + 3 +  10/*barrier*/);
 				unsigned char* p = pBuffer ;
 				size_t loop = 0 ; int increased = 0 ;
@@ -302,13 +321,7 @@ static void* playback_thread(void* argv)
 	int64_t frameCount = 0 ;
 
 
-#if SAVE_EXTRACT_H264_TO_FILE
-	int fd = -1 ;
-	fd = open( EXTRACT_DST_FILE_NAME ,O_CREAT | O_WRONLY | O_TRUNC );
-	if( fd < 0 ) {
-		ALOGE("native Codec H264 file open error %d , %s  " , fd , strerror(errno));
-	}
-#endif
+
 
 	// 循环
 	bool sawInputEOS = false, sawOutputEOS = false ;
@@ -339,36 +352,39 @@ static void* playback_thread(void* argv)
 	             * Codec Buffer = 1048576 Extractor = 949    ??? 为什么Codec Buffer是1048576??
 	             * */
 
+#if SAVE_EXTRACT_H264_TO_FILE
+                if( fd >=0  ){
+                    write(fd, buf , sampleSize);
+                }
+#endif
+
 #if SEARCH_OTHER_NAL_IN_SAMPLE
 	            	// 第一个SEI  readSampleData 如果返回0x6很有可能包含  第一个IDR帧
 	            	// SEI中增强信息  可以在迅雷播放器的 视频 编码库 和  编码参数设置 中查看  SEI中大部分都是可阅读的字符串
 	            	// 在Android实现中一个sample中  一定包含一个时间戳  SPS PPS SEI都没有时间戳 所以sample =   P帧+PPS帧
 
-	            	uint8_t* p = buf + 4 ; // 跳过开始的00 00 00 01 查找这个sample中的其他NAL
-	            	uint8_t* pEnd = buf + sampleSize  ;
-					bool sample_end = false;
-					do{
-						while( *p!=0 || *(p+1)!=0 || *(p+2) != 0 || *(p+3)!=1 ){
-							p++;
-							if( p + 3 >= pEnd ) {
-								sample_end = true ;
-								break;
-							}
-						}
-						if(!sample_end){
-							ALOGI("Found One NAL_type = 0x%02x in Sample 0x%02x " , *(p+4) , nal_type_buf );
-							p += 4 ;
-						}
-					}while(p + 3 < pEnd );
+                ALOGI("sample 0x%02x" , nal_type_buf );
+                uint8_t* p = buf + 4 ; // 跳过开始的00 00 00 01 查找这个sample中的其他NAL
+                uint8_t* pEnd = buf + sampleSize  ;
+                bool sample_end = false;
+                do{
+                    while( *p!=0 || *(p+1)!=0 || *(p+2) != 0 || *(p+3)!=1 ){
+                        p++;
+                        if( p + 3 >= pEnd ) {
+                            sample_end = true ;
+                            break;
+                        }
+                    }
+                    if(!sample_end){
+                        ALOGI("Found One NAL_type = 0x%02x in Sample 0x%02x [%p]" , *(p+4) , nal_type_buf , buf );
+                        p += 4 ;
+                    }
+                }while(p + 3 < pEnd );
 #endif
 
 
 
-#if SAVE_EXTRACT_H264_TO_FILE
-	            if( fd >=0  ){
-	            	write(fd, buf , sampleSize);
-	            }
-#endif
+
 	            if (sampleSize < 0) {
 	                sampleSize = 0;
 	                sawInputEOS = true;
@@ -638,7 +654,11 @@ JNIEXPORT void JNICALL native_setAndplay(JNIEnv * env , jobject nwc_jobj , jstri
 		return ;
 	}else{
 		const char* path = env->GetStringUTFChars(jstr,NULL);
-		int tempFd = open(path , O_RDONLY);
+#ifdef EXTRACT_SRC_FILE_NAME
+		int tempFd = open(EXTRACT_SRC_FILE_NAME , O_RDONLY);
+#else
+        int tempFd = open(path , O_RDONLY);
+#endif
 		if( tempFd < 0){
 			snprintf(result, sizeof(result), "Can Not Open File %s with %s!", path , strerror(errno));
 			ALOGE("%s",result);
