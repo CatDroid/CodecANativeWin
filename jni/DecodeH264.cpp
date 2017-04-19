@@ -27,8 +27,23 @@
 #include "NativeBuffer.h"
 
 #define JAVA_CLASS_PATH "com/tom/codecanativewin/jni/DecodeH264"
-//#define TEST_H264_FILE "/mnt/sdcard/client.h264"
-#define	H264_FILE  			3
+
+//#define VIDEO_CODEC   "video/avc"  //  "video/hevc"  "video/avc"  "video/x-vnd.on2.vp9"  "audio/mp4a-latm"
+#define VIDEO_CODEC   "video/hevc"
+//#define VIDEO_WIDTH   1280
+//#define VIDEO_HEIGHT  960
+#define VIDEO_WIDTH   1920
+#define VIDEO_HEIGHT  1080
+#define VIDEO_CONTROL_INTERVAL 100 * 1000 // fps  usleep  AMediaCodec_dequeueInputBuffer
+
+// 不用上层提供的文件路径
+//#define TEST_H264_FILE "/mnt/sdcard/vr.hevc"      // 1280x960
+#define TEST_H264_FILE "/mnt/sdcard/h265.hevc"    // 1920x1080
+//#define TEST_H264_FILE "/mnt/sdcard/vr.havc"      // 1280x960
+
+// 如果文件中有sps pps vps信息 就不用上层传进来的
+#define H264_FILE_HAS_SPS_PPS_VPS 1
+
 #define DECODEOUT_THREAD 	1
 #define TEST_DROP_P_FRAME	0	// 测试丢掉部分P帧
 #define TEST_DROP_I_FRAME	0	//
@@ -78,7 +93,7 @@ static void* decodeOuth264_thread(void* argv)
 				}
 
 
-				NativeContext::sendCallbackEvent((void*)ctx , MEDIA_TIME_UPDATE , (int)(info.presentationTimeUs/1000/1000),  info.size , NULL);
+//				NativeContext::sendCallbackEvent((void*)ctx , MEDIA_TIME_UPDATE , (int)(info.presentationTimeUs/1000/1000),  info.size , NULL);
 
 				// render = true 如果configure时候配置了surface 就render到surface上
 				AMediaCodec_releaseOutputBuffer(decoder, status, info.size != 0);
@@ -142,10 +157,12 @@ static void* decodeh264_thread(void* argv)
 			break;
 		}
 
+        bool current_is_fourth = true ;
+
 		while( (!sawInputEOS || !sawOutputEOS) && !ctx->mforceClose ){
 			ssize_t bufidx = -1;
 			if (!sawInputEOS) {
-			        bufidx = AMediaCodec_dequeueInputBuffer(ctx->mDecoder, 50000);
+			        bufidx = AMediaCodec_dequeueInputBuffer(ctx->mDecoder, VIDEO_CONTROL_INTERVAL);
 			        if (bufidx >= 0) {
 			        	++sample_count ;
 			            size_t bufsize;// buffer的大小
@@ -154,8 +171,14 @@ static void* decodeh264_thread(void* argv)
 
 			            //  在这里读取文件
 			            int sampleSize = 0 ;
-			            unsigned char* p = pCur + 4 ;
-			            while( *p!=0 || *(p+1)!=0 || *(p+2) != 0 || *(p+3)!=1 ){
+                        bool next_is_fourth = true ;
+                        unsigned char* p = pCur + 4 ;
+                        if( ! current_is_fourth ){
+                            p = pCur + 3 ; // 00 00 01
+                        }
+
+                        while(  !(*p==0 && *(p+1)==0 && (*(p+2)==1 || (*(p+2)==0 && *(p+3)==1) ) )  ){
+			            //while(  *p!=0 || *(p+1)!=0 ||  *(p+2)!=0 ||*(p+3)!=1  ){
 			            	p++;
 			            	if( p + 3 >= pEnd ) {
 			            		p = pEnd ;
@@ -163,6 +186,15 @@ static void* decodeh264_thread(void* argv)
 			            		break;
 			            	}
 			            }
+
+                        if( *p==0 && *(p+1)==0 && *(p+2)==1 ){
+                            ALOGD("next frame is three");
+                            next_is_fourth = false ;
+                        }else{
+                            ALOGD("next frame is fourth");
+                            next_is_fourth = true ;
+                        }
+
 			            sampleSize = p - pCur ; // 包含当前 00 00 00 01
 			            //  00 	00	00	01		........		00	00	00  01
 			            //  ˇ									ˇ
@@ -176,6 +208,11 @@ static void* decodeh264_thread(void* argv)
 
 			            int nal_type = buf[4] & 0x1F ;
 			            int nal = buf[4] ;
+                        if( !current_is_fourth ){
+                            nal_type = buf[3] & 0x1F ;
+                            nal = buf[3] ;
+                        }
+                        current_is_fourth = next_is_fourth ;
 
 		    			struct timeval cur_time;
 			    		gettimeofday(&cur_time, NULL);
@@ -183,24 +220,24 @@ static void* decodeh264_thread(void* argv)
 
 
 			    		// 把H264裸流上抛到应用层
-			    		int triSize = sampleSize ;
-
-				        ABuffer * pbuffer = ctx->m_pABufferManager->obtainBuffer();
-				        if( pbuffer != NULL){
-							ALOGD(" obtainBuffer %p " , pbuffer  );
-							if(triSize > pbuffer->mCaptical ){
-								ALOGE("sample too huge 1 ");
-								triSize = pbuffer->mCaptical ;
-							}
-							ALOGD(" pbuffer->mData = %p ",  pbuffer->mData );
-							memcpy( pbuffer->mData  , pCur  , triSize );
-							pbuffer->mDataType =  1 ;
-							pbuffer->mActualSize = triSize ;
-							pbuffer->mTimestamp = (int)(presentationTimeUs/1000/1000) ;
-							NativeContext::sendCallbackEvent((void*)ctx , MEDIA_H264_SAMPLE , 0 ,  0 , pbuffer);
-				        }else{
-				        	ALOGE("BufferManager->obtainBuffer abort");
-				        }
+//			    		int triSize = sampleSize ;
+//
+//				        ABuffer * pbuffer = ctx->m_pABufferManager->obtainBuffer();
+//				        if( pbuffer != NULL){
+//							ALOGD(" obtainBuffer %p " , pbuffer  );
+//							if(triSize > pbuffer->mCaptical ){
+//								ALOGE("sample too huge 1 ");
+//								triSize = pbuffer->mCaptical ;
+//							}
+//							ALOGD(" pbuffer->mData = %p ",  pbuffer->mData );
+//							memcpy( pbuffer->mData  , pCur  , triSize );
+//							pbuffer->mDataType =  1 ;
+//							pbuffer->mActualSize = triSize ;
+//							pbuffer->mTimestamp = (int)(presentationTimeUs/1000/1000) ;
+//							NativeContext::sendCallbackEvent((void*)ctx , MEDIA_H264_SAMPLE , 0 ,  0 , pbuffer);
+//				        }else{
+//				        	ALOGE("BufferManager->obtainBuffer abort");
+//				        }
 
 				        ctx->mExtractCount++ ;
 			            pCur = p ;
@@ -268,8 +305,7 @@ static void* decodeh264_thread(void* argv)
 			            }
 
 #if 1
-			            //usleep(5*1000*1000);
-				        usleep(30 * 1000);
+				        usleep(VIDEO_CONTROL_INTERVAL);
 #else
 				       	if( sample_count % 100 == 0 ){
 				       		int sleepRand = rand()%10 ;
@@ -279,7 +315,7 @@ static void* decodeh264_thread(void* argv)
 #endif
 
 			        }else{
-			        		//ALOGD("no input buffer right now, bufidx = %d " , bufidx);
+			        		ALOGD("no input buffer right now, bufidx = %d " , bufidx);
 			        }
 			}
 
@@ -341,8 +377,15 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject decodeH264_jobj ,
 
 	do{
 		const char*const path = env->GetStringUTFChars(strpath,NULL);
-		ALOGD("open %s", path);
+
+#ifdef TEST_H264_FILE
+        ALOGD("open %s", TEST_H264_FILE);
+		int tempFd = open(TEST_H264_FILE , O_RDONLY);
+#else
+        ALOGD("open %s", path);
 		int tempFd = open(path , O_RDONLY);
+#endif
+
 		if( tempFd < 0){
 			snprintf(result, sizeof(result), "Can Not Open File %s with %s!", path , strerror(errno));
 			ALOGE("%s",result);
@@ -353,7 +396,7 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject decodeH264_jobj ,
 		}
 		env->ReleaseStringUTFChars(strpath,path);
 
-		pData->mDecoder = AMediaCodec_createDecoderByType("video/avc");
+		pData->mDecoder = AMediaCodec_createDecoderByType( VIDEO_CODEC );
 		if (NULL == pData->mDecoder) {
 			ALOGE("AMediaCodec_createEncoderByType fail\n");
 			break;
@@ -364,14 +407,15 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject decodeH264_jobj ,
 			ALOGE("AMediaFormat_new fail\n");
 			break;
 		}
-		AMediaFormat_setString(format, AMEDIAFORMAT_KEY_MIME, "video/avc");
-		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_WIDTH, 1280);
-		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_HEIGHT, 960);
+		AMediaFormat_setString(format, AMEDIAFORMAT_KEY_MIME, VIDEO_CODEC );
+		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_WIDTH, VIDEO_WIDTH);
+		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_HEIGHT, VIDEO_HEIGHT);
 		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_INPUT_SIZE, 17449 );
 		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_WIDTH, 656);
 		AMediaFormat_setInt32(format, AMEDIAFORMAT_KEY_MAX_HEIGHT, 936 );
 
-
+// 如果文件中有sps pps vps信息 就不用上层传进来的
+#ifdef  H264_FILE_HAS_SPS_PPS_VPS
 		jbyte* csd = env->GetByteArrayElements(jsps,NULL);
 		int csd_len = env->GetArrayLength(jsps);
 		AMediaFormat_setBuffer(format , "csd-0" , csd , csd_len );	// sps
@@ -381,6 +425,7 @@ JNIEXPORT void JNICALL native_start(JNIEnv * env , jobject decodeH264_jobj ,
 		csd_len = env->GetArrayLength(jpps);
 		AMediaFormat_setBuffer(format , "csd-1" , csd , csd_len ); 	// pps
 		env->ReleaseByteArrayElements(jpps,csd,JNI_ABORT);
+#endif
 
 		const char *sformat = AMediaFormat_toString(format);
 		ALOGD("decode format: %s", sformat);

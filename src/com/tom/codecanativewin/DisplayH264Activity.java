@@ -76,7 +76,7 @@ public class DisplayH264Activity extends Activity {
 					
 				}
 				
-				if (surfaceCreated == false){
+				if (!surfaceCreated){
 					Toast.makeText(DisplayH264Activity.this, "Surface Not Available now", Toast.LENGTH_LONG)
 							.show();
 				}else{
@@ -103,23 +103,24 @@ public class DisplayH264Activity extends Activity {
 					
 					///////<<<<<
 					
-					String path1080p60fps = "/mnt/sdcard/" + "1080p60fps.h264" ;
-					byte[] sps1080p60fps =  {
-							(byte)0x00,(byte)0x00,(byte)0x00,(byte)0x01,
-							(byte)0x67,(byte)0x64,(byte)0x00,(byte)0x2a,
-							(byte)0xac,(byte)0xd1,(byte)0x00,(byte)0x78,
-							(byte)0x02,(byte)0x27,(byte)0xe5,(byte)0xc0,
-							(byte)0x44,(byte)0x00,(byte)0x00,(byte)0x0f,
-							(byte)0xa4,(byte)0x00,(byte)0x07,(byte)0x53,
-							(byte)0x00,(byte)0x3c,(byte)0x60,(byte)0xc4,
-							(byte)0x48,
-					};
-					byte[] pps1080p60fps = {
-							(byte)0x00,(byte)0x00,(byte)0x00,(byte)0x01,
-							(byte)0x68,(byte)0xeb,(byte)0xef,(byte)0x2c,
-					};
-					mH264de2.start(mSh1.getSurface() , path1080p60fps , 
-									sps1080p60fps  , pps1080p60fps );
+//					String path1080p60fps = "/mnt/sdcard/" + "1080p60fps.h264" ;
+//					byte[] sps1080p60fps =  {
+//							(byte)0x00,(byte)0x00,(byte)0x00,(byte)0x01,
+//							(byte)0x67,(byte)0x64,(byte)0x00,(byte)0x2a,
+//							(byte)0xac,(byte)0xd1,(byte)0x00,(byte)0x78,
+//							(byte)0x02,(byte)0x27,(byte)0xe5,(byte)0xc0,
+//							(byte)0x44,(byte)0x00,(byte)0x00,(byte)0x0f,
+//							(byte)0xa4,(byte)0x00,(byte)0x07,(byte)0x53,
+//							(byte)0x00,(byte)0x3c,(byte)0x60,(byte)0xc4,
+//							(byte)0x48,
+//					};
+//					byte[] pps1080p60fps = {
+//							(byte)0x00,(byte)0x00,(byte)0x00,(byte)0x01,
+//							(byte)0x68,(byte)0xeb,(byte)0xef,(byte)0x2c,
+//					};
+//					mH264de2.start(mSh1.getSurface() , path1080p60fps ,
+//									sps1080p60fps  , pps1080p60fps );
+
 				}
 			}
 		});
