@@ -169,7 +169,7 @@ public class CamRecbyOpenGL extends Activity {
 	            	// 在这里跑一段时间   使用Camera MediaCodec Surface进行录像  
 	            	// 最后线程退出
 	            } catch (Throwable th) {
-	            	Log.e(TAG, "encodeCamera2mp4_thread exception" + th.getMessage() );
+	            	Log.e(TAG, "encodeCamera2mp4_thread exception " + th.getMessage() );
 	            	th.printStackTrace();
 	            }
         }
@@ -301,7 +301,7 @@ public class CamRecbyOpenGL extends Activity {
 		Surface surface = mEncoder.createInputSurface();
 		Log.d(TAG,"createInputSurface 1 ");
 		
-		try{
+		try{ // 重复获取Surface会有错误  测试在Mali 和 晓龙820平台
 			Surface temp = mEncoder.createInputSurface();
 			Log.d(TAG, "duplicated called surface = " + surface + " temp = " + temp );
 		}catch ( android.media.MediaCodec.CodecException ex ){
@@ -458,7 +458,7 @@ public class CamRecbyOpenGL extends Activity {
 		Log.d(TAG, MIME_TYPE + " output " + ENC_WIDTH 
 				+ "x" + ENC_HEIGHT + " @" + ENC_BITRATE);
 
-		try{
+		try{ // 测试 BitmapFactory 0,0 是图片的左上角
 			
 		
 		Bitmap bmp =BitmapFactory.decodeFile("/mnt/sdcard/test_memory.bmp");
@@ -473,8 +473,9 @@ public class CamRecbyOpenGL extends Activity {
 		Log.d("TOM", "first memory " +  Integer.toHexString(pixels[0]) + " (640,0) = " +  Integer.toHexString(pixels[640 - 1 ]));
 		
 		}catch(Exception ex){
+			Log.e(TAG,"Test Bitmap read pixel Fail ");
 			ex.printStackTrace();
-			return ;
+			//return ;
 		}
 		try {
 			
@@ -1149,6 +1150,8 @@ public class CamRecbyOpenGL extends Activity {
 			return mTextureID;
 		}
 
+		int testOESDraw = 0 ;
+
 		public void drawFrame(SurfaceTexture st) {
 			checkGlError("onDrawFrame start");
 			
@@ -1216,6 +1219,49 @@ public class CamRecbyOpenGL extends Activity {
 
 			GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
 			checkGlError("glDrawArrays");
+
+
+
+
+			if( testOESDraw == 0 ){
+				int[] texIDs = new int[1];
+				GLES20.glGenTextures(1, texIDs, 0);
+				GLES20.glBindTexture(GLES11Ext.GL_TEXTURE_EXTERNAL_OES , texIDs[0]);
+
+				// init texture parameters
+				GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR);
+				GLES20.glTexParameterf(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR);
+				GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE);
+				GLES20.glTexParameteri(GLES11Ext.GL_TEXTURE_EXTERNAL_OES, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE);
+
+				int [] fboIds = new int[1];
+				GLES20.glGenFramebuffers(1, fboIds, 0);
+				GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER, fboIds[0]);
+				GLES20.glFramebufferTexture2D(GLES20.GL_FRAMEBUFFER, GLES20.GL_COLOR_ATTACHMENT0, GLES11Ext.GL_TEXTURE_EXTERNAL_OES , texIDs[0], 0);
+
+				testOESDraw = fboIds[0] ;
+				Log.d(TAG,"glDraw to OES Begin");
+				GLES20.glDrawArrays(GLES20.GL_TRIANGLE_STRIP, 0, 4);
+				try{
+					checkGlError("glDrawArrayOES");
+
+				}catch(Exception e ){
+					Log.e(TAG, "Exception " + e.getMessage() );
+				}
+				GLES20.glBindFramebuffer(GLES20.GL_FRAMEBUFFER,0);
+				Log.d(TAG,"glDraw to OES End");
+
+				/*
+				*  ARM(MAli) mt6797 和 晓龙820
+				*  渲染到OES会遇到
+				*  GL ERROR ; 1286: Invalid framebuffer operation
+				* */
+			}
+
+
+
+
+
 
 			// IMPORTANT: 在有些设备 如果你共享外部纹理(external texture)在两个Context中
 			// 其中一个context可能看不到texture的更新 除非 un-bind和re-bind它
