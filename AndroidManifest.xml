@@ -32,50 +32,50 @@
         </activity>
         <activity
             android:name=".NativeWinCodecActivity"
-            android:label="@string/title_activity_native_win_codec"></activity>
+            android:label="@string/title_activity_native_win_codec" />
         <activity
             android:name="com.tom.Camera.CamRecbyOpenGL"
             android:label="@string/title_activity_camera"
-            android:screenOrientation="portrait"
-            ></activity>
+            android:screenOrientation="portrait" />
         <activity
             android:name=".De2FileAndEn2FileActivity"
-            android:label="@string/title_activity_de2_file_and_en2_file"></activity>
+            android:label="@string/title_activity_de2_file_and_en2_file" />
         <activity
             android:name=".MediaPlayerActivity"
-            android:label="@string/title_activity_media_player"></activity>
+            android:label="@string/title_activity_media_player" />
         <activity
             android:name=".DisplayH264Activity"
             android:label="@string/title_activity_display_h264"
-            android:screenOrientation="portrait"></activity>
+            android:screenOrientation="portrait" />
         <activity
             android:name=".AudioDecActivity"
-            android:label="@string/title_activity_audio_dec"></activity>
+            android:label="@string/title_activity_audio_dec" />
         <activity
             android:name=".ByteBufferActivity"
-            android:label="@string/title_activity_byte_buffer"></activity>
+            android:label="@string/title_activity_byte_buffer" />
         <activity
             android:name=".RtspPlayerActivity"
-            android:label="@string/title_activity_rtsp_player"></activity>
+            android:label="@string/title_activity_rtsp_player" />
         <activity
             android:name="com.tom.Camera.NewCameraActivity"
-            android:label="@string/title_activity_new_camera"></activity>
+            android:label="@string/title_activity_new_camera" />
         <activity
             android:name="com.tom.Camera.OldCameraActivity"
-            android:label="@string/title_activity_new_camera"></activity>
+            android:label="@string/title_activity_new_camera" />
         <activity
             android:name=".FormatActivity"
-            android:label="@string/title_activity_format"></activity>
+            android:label="@string/title_activity_format" />
         <activity
             android:name="com.tom.opengl.three.DecodeYUVGLActivity"
-            android:label="@string/title_activity_decodeyuvgl"></activity>
+            android:label="@string/title_activity_decodeyuvgl" />
         <activity
             android:name="com.tom.opengl.two.TextureUV2RGBActivity"
-            android:label="@string/title_activity_texture2gl"></activity>
+            android:label="@string/title_activity_texture2gl" />
         <activity
             android:name="com.tom.opengl.one.Texture1RGBActivity"
-            android:label="@string/title_activity_texture1gl"></activity>
-        <activity android:name=".NativeHeapActivity"></activity>
+            android:label="@string/title_activity_texture1gl" />
+        <activity android:name=".NativeHeapActivity" />
+        <activity android:name=".JBitmapActivity"></activity>
     </application>
 
 </manifest>

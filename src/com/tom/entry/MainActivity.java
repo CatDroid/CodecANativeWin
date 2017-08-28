@@ -14,6 +14,7 @@ import com.tom.codecanativewin.ByteBufferActivity;
 import com.tom.codecanativewin.De2FileAndEn2FileActivity;
 import com.tom.codecanativewin.DisplayH264Activity;
 import com.tom.codecanativewin.FormatActivity;
+import com.tom.codecanativewin.JBitmapActivity;
 import com.tom.codecanativewin.MediaPlayerActivity;
 import com.tom.codecanativewin.NativeHeapActivity;
 import com.tom.codecanativewin.NativeWinCodecActivity;
@@ -65,8 +66,8 @@ public class MainActivity extends Activity {
 		
 		Log.d(TAG, "package name " + MainActivity.this.getPackageName() );
 	}
-	
-	
+
+
 
 	@Override
 	protected void onDestroy() {
@@ -153,6 +154,11 @@ public class MainActivity extends Activity {
 			break;
 		case R.id.bNativeHeap:
 			start = new Intent(MainActivity.this, NativeHeapActivity.class);
+			this.startActivity(start);
+			this.finish();
+			break;
+		case R.id.jbitmap:
+			start = new Intent(MainActivity.this, JBitmapActivity.class);
 			this.startActivity(start);
 			this.finish();
 			break;

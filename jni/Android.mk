@@ -52,6 +52,14 @@ LOCAL_SHARED_LIBRARIES := libCommon
 include $(BUILD_SHARED_LIBRARY)
 ##############################################################################
 
+##############################################################################
+include $(CLEAR_VARS)
+LOCAL_LDLIBS    := -llog -landroid -ljnigraphics
+LOCAL_MODULE    := JniBitmap
+LOCAL_SRC_FILES := JniBitmap.cpp
+include $(BUILD_SHARED_LIBRARY)
+##############################################################################
+
 #include $(LOCAL_PATH)/tcp_udp/Android.mk
 include $(LOCAL_PATH)/openGL/Android.mk
 

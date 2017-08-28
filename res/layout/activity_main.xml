@@ -147,4 +147,13 @@
 		android:onClick="funcOnClick"
 		android:id="@+id/bNativeHeap" />
 
+	<Button
+		android:id="@+id/jbitmap"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_above="@+id/bCam2OpenGL"
+		android:layout_alignStart="@+id/bCam2OpenGL"
+		android:onClick="funcOnClick"
+		android:text="JBitmap" />
+
 </RelativeLayout>
