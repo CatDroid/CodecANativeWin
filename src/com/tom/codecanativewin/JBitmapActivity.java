@@ -7,6 +7,7 @@ import android.graphics.BitmapFactory;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.HandlerThread;
+import android.util.Log;
 import android.view.View;
 import android.widget.Button;
 
@@ -20,6 +21,7 @@ import java.io.OutputStream;
 
 public class JBitmapActivity extends Activity {
 
+    private final static String TAG = "JBitmapActivity";
 
     private Handler mHandler = null;
     private Bitmap mTestBitmap = null; // 如果这里有引用Bitmap 会导致Bitmap无法释放 占用内存
@@ -34,6 +36,10 @@ public class JBitmapActivity extends Activity {
         thread.start();
         mHandler = new Handler(thread.getLooper());
 
+        // java.lang.Enum.valueOf()
+        Bitmap.Config cfg = Bitmap.Config.valueOf( "ARGB_8888" );
+        Log.d(TAG, "cfg is " + cfg );
+
         Button btn = (Button)findViewById(R.id.bGenBitmap);
         btn.setOnClickListener(new View.OnClickListener(){
             @Override
@@ -41,6 +47,7 @@ public class JBitmapActivity extends Activity {
                 mHandler.post(new Runnable() {
                     @Override
                     public void run() {
+
                         Bitmap bmp = BitmapFactory.decodeFile("/mnt/sdcard/test.jpg");
                         Bitmap newBitmap = JBitmap.rotateBitmapCcw90( bmp);
                         //mTestBitmap = newBitmap ; //  图片宽*高*4(rgba) = 1080*1440*4  = 6220800 近6M内存

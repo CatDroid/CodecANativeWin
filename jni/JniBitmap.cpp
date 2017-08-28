@@ -77,6 +77,26 @@ JNIEXPORT jobject JNICALL Java_com_tom_codecanativewin_jni_JBitmap_rotateBitmapC
     jclass bitmapConfigClass = env->FindClass("android/graphics/Bitmap$Config");
     jmethodID valueOfBitmapConfigFunction = env->GetStaticMethodID(bitmapConfigClass, "valueOf", "(Ljava/lang/String;)Landroid/graphics/Bitmap$Config;");
     jobject bitmapConfig = env->CallStaticObjectMethod(bitmapConfigClass, valueOfBitmapConfigFunction, configName);
+    //  Bitmap.Config.valueOf( "ARGB_8888" )
+
+    /*
+     * bitmap.h  ~~~不能直接用JNI中bitmap.h的值~~~
+     * enum AndroidBitmapFormat {
+            ANDROID_BITMAP_FORMAT_NONE      = 0,
+            ANDROID_BITMAP_FORMAT_RGBA_8888 = 1,
+            ANDROID_BITMAP_FORMAT_RGB_565   = 4,
+            ANDROID_BITMAP_FORMAT_RGBA_4444 = 7,
+            ANDROID_BITMAP_FORMAT_A_8       = 8,
+        };
+
+        Bitmap.java
+          public enum Config {
+            ALPHA_8     (1),
+            RGB_565     (3),
+            ARGB_4444   (4),
+            ARGB_8888   (5);
+     */
+
     // 宽高调转
     jobject newBitmap = env->CallStaticObjectMethod(bitmapCls, createBitmapFunction, info.height, info.width, bitmapConfig);
     //
