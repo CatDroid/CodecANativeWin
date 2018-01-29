@@ -19,6 +19,7 @@
 
 #include <EGL/egl.h>
 #include <GLES/gl.h>
+#include <unistd.h>
 
 #define LOG_TAG "jni_decodeh264"
 #include "vortex.h"

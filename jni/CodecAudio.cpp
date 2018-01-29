@@ -11,6 +11,7 @@
 #include <media/NdkMediaExtractor.h>
 #include <android/native_window_jni.h> // ANativeWindow
 #include <arpa/inet.h>
+#include <unistd.h>
 
 
 #define LOG_TAG "jni_codecaudio"

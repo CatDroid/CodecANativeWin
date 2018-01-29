@@ -42,6 +42,7 @@
 #define SEARCH_OTHER_NAL_IN_SAMPLE 1 //  通过Extractor取出的一个sample中 可能包含多个NAL
 
 #include <list>
+#include <unistd.h>
 
 
 enum{
