@@ -22,9 +22,18 @@ import android.view.MenuItem;
 
 public class FormatActivity extends Activity {
 
-	private final String TAG = "FormatActivity" ; 
-	
-	/* 芯片编码 规格 mt6735
+	private final String TAG = "FormatActivity" ;
+
+	/* 常见颜色空间
+	 * COLOR_Format32bitARGB8888 = 16; // 0x10
+	 * COLOR_Format32bitBGRA8888 = 15; // 0xf
+	 * COLOR_FormatYUV420Planar = 19; // surely plannar but maybe I420(*) or YV12
+	 * COLOR_FormatYUV420SemiPlanar = 21; //surely semi-planar but maybe NV12(*) or NV21
+	 * COLOR_FormatYUV420Flexible = 2135033992;
+	 * COLOR_FormatSurface = 2130708361;    0x 7F000789
+	 */
+
+	/* 芯片编码 规格 mt6735  编码H264
 	 * 
 	 * 	cpu : mt6735
 		codec name: OMX.MTK.VIDEO.ENCODER.AVC
@@ -48,6 +57,47 @@ public class FormatActivity extends Activity {
 		mime:video/avc support formats = 16				COLOR_Format32bitARGB8888
 		mime:video/avc support formats = 2130707200
 		mime:video/avc support formats = 15				COLOR_Format32bitBGRA8888
+
+
+		小米5 高通820 Android7.0
+		解码：
+		codec name: OMX.qcom.video.decoder.avc
+		Bitrate:1~100000000
+		FrameRate:1~240
+		height:64~2160
+		width:64~4096
+		width_align:2 height_align:2
+		640, 480 support ? true
+		640, 480 15fps support ? true
+		1920, 1080 60fps support ? true
+		1920, 1080 30fps support ? true
+		mime:video/avc support formats = 2141391878
+		mime:video/avc support formats = 2135033992		COLOR_FormatYUV420Flexible
+		mime:video/avc support formats = 2141391876
+		mime:video/avc support formats = 21			 	COLOR_FormatYUV420SemiPlanar  	NV12
+		mime:video/avc support formats = 19				COLOR_FormatYUV420Planar 		I420
+		mime:video/avc support formats = 2141391877
+
+		编码:
+		codec name: OMX.qcom.video.encoder.avc
+		Bitrate:1~100000000
+		FrameRate:1~240
+		height:64~2160
+		width:96~4096
+		width_align:2 height_align:2
+		640, 480 support ? true
+		640, 480 15fps support ? true
+		1920, 1080 60fps support ? true
+		1920, 1080 30fps support ? true
+		complex:0~0
+		mime:video/avc support formats = 2141391878
+		mime:video/avc support formats = 2141391876
+		mime:video/avc support formats = 2141391880
+		mime:video/avc support formats = 2141391879
+		mime:video/avc support formats = 2130708361		COLOR_FormatSurface
+		mime:video/avc support formats = 2135033992		COLOR_FormatYUV420Flexible
+		mime:video/avc support formats = 21				COLOR_FormatYUV420SemiPlanar
+
 	 *  
 	 */
 	@Override
@@ -79,14 +129,7 @@ public class FormatActivity extends Activity {
 	}
 	
 	
-	/* 常见颜色空间
-	 * COLOR_Format32bitARGB8888 = 16; // 0x10 
-	 * COLOR_Format32bitBGRA8888 = 15; // 0xf 
-	 * COLOR_FormatYUV420Planar = 19; // surely plannar but maybe I420 or YV12
-	 * COLOR_FormatYUV420SemiPlanar = 21; //surely semi-planar but maybe NV12 or NV21 
-	 * COLOR_FormatYUV420Flexible = 2135033992; 
-	 * COLOR_FormatSurface = 2130708361;
-	 */
+
 	public void testCodec() {
 		String MIME_TYPE = "video/avc";
 		int width  = 1280 ; 
@@ -108,7 +151,9 @@ public class FormatActivity extends Activity {
 		format.setInteger(MediaFormat.KEY_I_FRAME_INTERVAL, i_frame_interval); 	// required for encoders
 																// 关键帧间隔时间 单位1s  这样会转换成GOP间隔 = 19  
 																// 实际是否1秒种有20帧 并且有一个IDR帧是"不确定的"
-	
+
+		// https://developer.android.com/reference/android/media/MediaFormat.html
+		// 可以获取编码/解码  视频/音频 可以设置的参数
 		format.setInteger(MediaFormat.KEY_COLOR_FORMAT, input_color_format);	// required 
 				
 		String current = String.format("width:%d height:%d bitrate:%d framerate:%d i_inteval:%d color:%d",  
@@ -162,7 +207,7 @@ public class FormatActivity extends Activity {
 		
 	}
 	
-	/* 高通 820 小米5 测试 sps 和 pps   支持颜色空间 COLOR_FormatYUV420SemiPlanar  21 
+	/* 高通 820 小米5 测试 sps 和 pps   支持颜色空间 COLOR_FormatYUV420SemiPlanar  21
 	 	
 		sps len = 17 pps len = 8
 		width:640 height:480 bitrate:2000000 framerate:15 i_inteval:1 color:21
@@ -190,7 +235,6 @@ public class FormatActivity extends Activity {
 		width:1280 height:960 bitrate:9000000 framerate:30 i_inteval:5 color:21	<= 修改宽高
 		sps = 67,42,80,20,da,1,40,1e,68,6,d0,a1,35								<= sps有变 pps没有变 
 		pps = 68,ce,6,e2
-
 	 */
 	byte[] mSPS = null;
 	byte[] mPPS = null;
@@ -290,9 +334,7 @@ public class FormatActivity extends Activity {
 		// Log.d(TAG, "elapsed = " + elapsed ); 可能是0 
 		return elapsed;
 	}
-	
-	
-	
+
 	
 	// 打印指定 编解码器isencode 对 某种类型mime 支持的颜色空间
 	public void dumpCodecInfo(boolean isencode, String mime) {
@@ -345,9 +387,13 @@ public class FormatActivity extends Activity {
 					Log.d(TAG, "1920, 1080 60fps support ? " + support_size_rate);
 					support_size_rate = cap.getVideoCapabilities().areSizeAndRateSupported(1920, 1080, 30);
 					Log.d(TAG, "1920, 1080 30fps support ? " + support_size_rate);
-					
-					Range<Integer> complex = cap.getEncoderCapabilities().getComplexityRange();
-					Log.d(TAG, "complex:" + complex.getLower() + "~" + complex.getUpper());
+
+					try {
+						Range<Integer> complex = cap.getEncoderCapabilities().getComplexityRange();
+						Log.d(TAG, "complex:" + complex.getLower() + "~" + complex.getUpper());
+					}catch(NullPointerException ex){
+						Log.e(TAG,"Null Pointer Exception !" + ex.getMessage() ) ;
+					}
 					for (int formats : cap.colorFormats) {
 						Log.d(TAG, "mime:" + mime + " support formats = " + formats);
 					}
