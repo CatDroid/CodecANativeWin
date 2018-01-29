@@ -10,28 +10,27 @@ buildscript {
 apply plugin: 'com.android.application'
 
 dependencies {
-    compile fileTree(dir: 'libs', include: '*.jar')
+    compile fileTree(include: '*.jar', dir: 'libs')
     compile 'com.android.support:appcompat-v7:21.0.3'
 }
 
 android {
+    publishNonDefault true
     compileSdkVersion 21
     buildToolsVersion "24.0.3"
-
     compileOptions {
         sourceCompatibility JavaVersion.VERSION_1_7
         targetCompatibility JavaVersion.VERSION_1_7
     }
-
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 21
 
         ndk {
-            abiFilters 'armeabi', 'armeabi-v7a', 'arm64-v8a'
+            //abiFilters 'armeabi', 'armeabi-v7a', 'arm64-v8a'
+            abiFilters 'armeabi-v7a'
         }
     }
-
     sourceSets {
         main {
             manifest.srcFile 'AndroidManifest.xml'
@@ -58,6 +57,11 @@ android {
     externalNativeBuild {
         ndkBuild {
             path 'jni/Android.mk'
+        }
+    }
+    buildTypes {
+        debug {
+            jniDebuggable true
         }
     }
 }
