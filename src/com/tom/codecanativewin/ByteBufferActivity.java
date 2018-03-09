@@ -290,7 +290,7 @@ public class ByteBufferActivity extends Activity {
 		 */
 		
 		// NioUtils是hide的  
-		// NioUtils.unsafeArray(rdbuffer);
+		// NioUtils.unsafeArray(rdbuffer);  由于ByteBuffer可能是readonly的所以不能array() 系统AudioTrack在使用NioUtils.unsafeArray而不是array()来得到数组
 		byte[] rdonlyByteArray = NioUtilsInvoke.unsafeArray(rdbuffer);
 		int array_offset_isNOT_position = NioUtilsInvoke.unsafeArrayOffset(rdbuffer); 
 		
