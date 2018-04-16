@@ -189,7 +189,7 @@ public class ThreadActivity extends Activity {
 
                         // 调用Native层方法 创建非堆内存 在Native层不返回
                         // Native层栈  signal 11 (SIGSEGV), code 2 (SEGV_ACCERR), fault addr 0xc8001000
-                        ThreadProc(1030*1024,true);
+                        ThreadProc(1024*1024,true);
                         // @荣耀V10 临界值 1028*1024
                         // @小米5 临界值 1029*1024
 

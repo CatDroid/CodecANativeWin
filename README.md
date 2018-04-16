@@ -25,4 +25,6 @@
     * 不能超过1M
     * 递归或者数组过大
     * 观察Debug.Meminfo获取的otherPrivateDirty和otherPss会增大
-    * otherPss区别与dalvikPss nativePss，是C/C++的非堆内存(包含栈内存)
+    * otherPss区别与dalvikPss nativePss，包含C/C++的非堆内存(包含栈内存)
+    * otherPss是dumpsys meminfo <appID> 返回 TOTAL - GL_mtrack - Native_Heap - Dalvik_Heap
+    * dumpsys meminfo <appID> 中 Unknown一行 PrivateDirty反映函数中栈内存 比如int8_t temp[1024*1024]
