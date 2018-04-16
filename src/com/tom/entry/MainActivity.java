@@ -9,6 +9,7 @@ import java.util.Arrays;
 import com.tom.Camera.CamRecbyOpenGL;
 import com.tom.Camera.NewCameraActivity;
 import com.tom.Camera.OldCameraActivity;
+import com.tom.MemThread.ThreadActivity;
 import com.tom.codecanativewin.AudioDecActivity;
 import com.tom.codecanativewin.ByteBufferActivity;
 import com.tom.codecanativewin.De2FileAndEn2FileActivity;
@@ -86,85 +87,91 @@ public class MainActivity extends Activity {
 	 */
 	public void funcOnClick(View view) {
 		Intent start = null;
-		switch (view.getId()) {
-		case R.id.bNativeWinCodec:
+		int i = view.getId();
+		if (i == id.bNativeWinCodec) {
 			start = new Intent(MainActivity.this, NativeWinCodecActivity.class);
 			this.startActivity(start);
 			this.finish();
-			break;
-		case R.id.bCamera:
+
+		} else if (i == id.bCamera) {
 			start = new Intent(MainActivity.this, CamRecbyOpenGL.class);
 			this.startActivity(start);
 			this.finish();
-			break;
-		case R.id.bDeEnCodec:
+
+		} else if (i == id.bDeEnCodec) {
 			start = new Intent(MainActivity.this, De2FileAndEn2FileActivity.class);
 			this.startActivity(start);
 			this.finish();
-			break;
-		case R.id.bPlayMediaPlayer:
+
+		} else if (i == id.bPlayMediaPlayer) {
 			start = new Intent(MainActivity.this, MediaPlayerActivity.class);
 			this.startActivity(start);
 			this.finish();
-			break;
-		case R.id.bDisplayH264:
+
+		} else if (i == id.bDisplayH264) {
 			start = new Intent(MainActivity.this, DisplayH264Activity.class);
 			this.startActivity(start);
 			this.finish();
-			break;	
-		case R.id.bAccFileDecode:
+
+		} else if (i == id.bAccFileDecode) {
 			start = new Intent(MainActivity.this, AudioDecActivity.class);
 			this.startActivity(start);
-			this.finish();			
-			break;
-		case R.id.bByteBuffer:
+			this.finish();
+
+		} else if (i == id.bByteBuffer) {
 			start = new Intent(MainActivity.this, ByteBufferActivity.class);
 			this.startActivity(start);
-			this.finish();			
-			break;
-		case R.id.bRtsp:
+			this.finish();
+
+		} else if (i == id.bRtsp) {
 			start = new Intent(MainActivity.this, RtspPlayerActivity.class);
 			this.startActivity(start);
-			this.finish();			
-			break;
-		case R.id.bCam2OpenGL:
+			this.finish();
+
+		} else if (i == id.bCam2OpenGL) {
 			start = new Intent(MainActivity.this, OldCameraActivity.class);
 			this.startActivity(start);
-			this.finish();			
-			break;
-		case R.id.bColorFormat:
+			this.finish();
+
+		} else if (i == id.bColorFormat) {
 			start = new Intent(MainActivity.this, FormatActivity.class);
 			this.startActivity(start);
-			this.finish();	
-			break;
-		case R.id.bDecodeYUVGL:
+			this.finish();
+
+		} else if (i == id.bDecodeYUVGL) {
 			start = new Intent(MainActivity.this, DecodeYUVGLActivity.class);
 			this.startActivity(start);
-			this.finish();			
-			break;
-		case R.id.bDecodeYUVGL2Plane:
+			this.finish();
+
+		} else if (i == id.bDecodeYUVGL2Plane) {
 			start = new Intent(MainActivity.this, TextureUV2RGBActivity.class);
 			this.startActivity(start);
-			this.finish();	
-			break;
-		case R.id.bDecodeYUVGL1Plane:
+			this.finish();
+
+		} else if (i == id.bDecodeYUVGL1Plane) {
 			start = new Intent(MainActivity.this, Texture1RGBActivity.class);
 			this.startActivity(start);
-			this.finish();	
-			break;
-		case R.id.bNativeHeap:
+			this.finish();
+
+		} else if (i == id.bNativeHeap) {
 			start = new Intent(MainActivity.this, NativeHeapActivity.class);
 			this.startActivity(start);
 			this.finish();
-			break;
-		case R.id.jbitmap:
+
+		} else if (i == id.jbitmap) {
 			start = new Intent(MainActivity.this, JBitmapActivity.class);
 			this.startActivity(start);
 			this.finish();
-			break;
-		default:
+
+		} else if( i == id.ManyThreads){
+
+			start = new Intent(MainActivity.this, ThreadActivity.class);
+			this.startActivity(start);
+			this.finish();
+
+		} else {
 			Log.d(TAG, "unknown Btn");
-			break;
+
 		}
 	}
 

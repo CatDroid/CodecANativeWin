@@ -156,4 +156,13 @@
 		android:onClick="funcOnClick"
 		android:text="JBitmap" />
 
+	<Button
+		android:id="@+id/ManyThreads"
+		android:layout_width="wrap_content"
+		android:layout_height="wrap_content"
+		android:layout_alignTop="@+id/bAccFileDecode"
+		android:layout_toEndOf="@+id/bDisplayH264"
+		android:onClick="funcOnClick"
+		android:text="线程" />
+
 </RelativeLayout>

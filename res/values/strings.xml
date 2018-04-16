@@ -17,4 +17,5 @@
     <string name="title_activity_decodeyuvgl">三纹理转换</string>
     <string name="title_activity_texture2gl">双纹理转换</string>
     <string name="title_activity_texture1gl">单纹理转换</string>
+    <string name="title_activity_threads">线程栈溢出</string>
 </resources>

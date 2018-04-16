@@ -1,5 +1,6 @@
 LOCAL_PATH := $(call my-dir)
 
+$(info "  LOCAL_PATH is $(LOCAL_PATH)")
 
 ##############################################################################
 include $(CLEAR_VARS)
@@ -60,18 +61,26 @@ LOCAL_SRC_FILES := JniBitmap.cpp
 include $(BUILD_SHARED_LIBRARY)
 ##############################################################################
 
+
+##############################################################################
+include $(CLEAR_VARS)
+LOCAL_LDLIBS    := -llog -landroid -ljnigraphics
+LOCAL_MODULE    := DirectCJNI
+LOCAL_SRC_FILES := DirectCJNI.cpp
+include $(BUILD_SHARED_LIBRARY)
+##############################################################################
+
 #include $(LOCAL_PATH)/tcp_udp/Android.mk
 include $(LOCAL_PATH)/openGL/Android.mk
 
 
- 
-.PHONY: clean 
-clean:
-	echo "excute .PHONY: clean "
-	del /f/s/q tempdir	
-	for /d %%i in (c:\*) do echo %%i  
-	for /r jni  %%a in ("*.c","*.cpp") do echo %%a
-	for %%i in (for1 for2 for3) do echo %%i
+#.PHONY: clean
+#clean:
+#	echo "excute .PHONY: clean "
+#	del /f/s/q tempdir
+#	for /d %%i in (c:\*) do echo %%i
+#	for /r jni  %%a in ("*.c","*.cpp") do echo %%a
+#	for %%i in (for1 for2 for3) do echo %%i
 	
 
 # del /f/s/q tempdir 只会下面的文件 不包含本文件夹和下面的文件夹

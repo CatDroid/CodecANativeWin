@@ -26,7 +26,6 @@
             android:label="@string/app_name">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
@@ -75,7 +74,9 @@
             android:name="com.tom.opengl.one.Texture1RGBActivity"
             android:label="@string/title_activity_texture1gl" />
         <activity android:name=".NativeHeapActivity" />
-        <activity android:name=".JBitmapActivity"></activity>
+        <activity android:name=".JBitmapActivity" />
+        <activity android:name="com.tom.MemThread.ThreadActivity"
+            android:label="@string/title_activity_threads"/>
     </application>
 
 </manifest>
